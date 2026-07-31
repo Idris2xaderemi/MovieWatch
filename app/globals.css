@@ -1,0 +1,79 @@
+/* Import Tailwind's base, components, and utilities */
+@import "tailwindcss";
+
+/* Define your custom design tokens */
+@theme {
+  --color-background: #0a0a0a;
+  --color-surface: #141414;
+  --color-border: #262626;
+  --color-primary: #e50914;
+}
+
+/* Base styles */
+body {
+  background-color: var(--color-background);
+  color: white;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Custom component classes (still use @apply) */
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-white font-semibold px-6 py-2 rounded-lg transition-all hover:bg-red-600 hover:scale-105 shadow-lg shadow-primary/20;
+  }
+  .btn-outline {
+    @apply bg-transparent border border-border text-white px-6 py-2 rounded-lg hover:border-primary hover:text-primary transition;
+  }
+  .section-title {
+    @apply text-2xl font-bold flex items-center gap-3;
+  }
+  .section-title .accent {
+    @apply w-1 h-8 bg-primary rounded-full;
+  }
+  .movie-grid {
+    @apply grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-4;
+  }
+  .card-hover {
+    @apply transition-transform duration-300 hover:-translate-y-2 hover:shadow-2xl;
+  }
+  .status-want {
+    @apply bg-blue-500/20 text-blue-400 border border-blue-500/30;
+  }
+  .status-watching {
+    @apply bg-yellow-500/20 text-yellow-400 border border-yellow-500/30;
+  }
+  .status-watched {
+    @apply bg-green-500/20 text-green-400 border border-green-500/30;
+  }
+  .status-pill {
+    @apply px-2 py-0.5 text-xs font-medium rounded-full;
+  }
+  .auth-btn {
+    @apply flex items-center gap-2 px-4 py-2 rounded-full font-medium transition border;
+  }
+  .auth-btn-google {
+    @apply bg-surface border-border text-white hover:bg-border;
+  }
+  .auth-btn-signout {
+    @apply bg-red-500/10 text-red-500 border-red-500/30 hover:bg-red-500/20;
+  }
+}
+
+/* Responsive overrides */
+@media (max-width: 480px) {
+  .movie-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 1rem;
+  }
+}
+
+/* Utilities */
+@layer utilities {
+  .page-enter {
+    animation: fadeSlideUp 0.5s ease both;
+  }
+  @keyframes fadeSlideUp {
+    0% { opacity: 0; transform: translateY(24px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+}

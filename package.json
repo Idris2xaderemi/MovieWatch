@@ -1,0 +1,36 @@
+{
+  "name": "moviewatch",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "overrides": {
+    "bson": "6.10.3"
+  },
+  "dependencies": {
+    "@auth/mongodb-adapter": "^3.11.3",
+    "mongodb": "^6.8.0",
+    "mongoose": "^8.0.0",
+    "next": "16.2.11",
+    "next-auth": "^4.24.15",
+    "postcss": "^8.5.23",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-icons": "^5.7.0",
+    "recharts": "^3.10.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^20.19.43",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.11",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5"
+  }
+}
