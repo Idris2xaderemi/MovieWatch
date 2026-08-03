@@ -11,13 +11,13 @@ import StatusBadge from './StatusBadge';
 interface Props {
   movie: Movie;
   watchlistStatus?: 'want' | 'watching' | 'watched' | null;
-  showWatchlist?: boolean; // <-- ADDED
+  showWatchlist?: boolean;
 }
 
 export default function MovieCard({
   movie,
   watchlistStatus: initialStatus,
-  showWatchlist = true, // default true
+  showWatchlist = true,
 }: Props) {
   const { data: session } = useSession();
   const [status, setStatus] = useState(initialStatus || null);
@@ -35,16 +35,22 @@ export default function MovieCard({
     }
     setIsLoading(true);
     try {
+      const title = movie.title || movie.name || 'Untitled';
+      const releaseDate = movie.release_date || movie.first_air_date || '';
+      const posterPath = movie.poster_path || '';
+      const backdropPath = movie.backdrop_path || '';
+      const voteAverage = movie.vote_average || 0;
+
       const res = await fetch('/api/watchlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           movieId: movie.id,
-          title: movie.title,
-          posterPath: movie.poster_path,
-          backdropPath: movie.backdrop_path,
-          releaseDate: movie.release_date,
-          voteAverage: movie.vote_average,
+          title,
+          posterPath,
+          backdropPath,
+          releaseDate,
+          voteAverage,
         }),
       });
       if (res.ok) {
@@ -62,6 +68,11 @@ export default function MovieCard({
     }
   };
 
+  // Determine display title and release year
+  const displayTitle = movie.title || movie.name || 'Unknown Title';
+  const releaseYear = (movie.release_date || movie.first_air_date)?.split('-')[0] || 'N/A';
+
+  // ------> The `return` statement is here – no stray `movie.` line above <------
   return (
     <div className="card-hover rounded-xl overflow-hidden bg-surface border border-border group">
       <Link href={`/movie/${movie.id}`}>
@@ -69,7 +80,7 @@ export default function MovieCard({
           {movie.poster_path ? (
             <Image
               src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
-              alt={movie.title}
+              alt={displayTitle}
               fill
               className="object-cover transition-transform duration-500 group-hover:scale-105"
               sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
@@ -80,7 +91,7 @@ export default function MovieCard({
           <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
           <div className="absolute top-2 right-2">
             <span className="px-2 py-1 text-xs font-bold bg-primary rounded-md text-white shadow-lg">
-              {Math.round(movie.vote_average * 10)}%
+              {movie.vote_average ? Math.round(movie.vote_average * 10) : 'N/A'}%
             </span>
           </div>
         </div>
@@ -88,20 +99,20 @@ export default function MovieCard({
       <div className="p-3 md:p-4">
         <Link href={`/movie/${movie.id}`}>
           <h3 className="font-semibold text-sm md:text-base truncate text-white hover:text-primary transition">
-            {movie.title}
+            {displayTitle}
           </h3>
         </Link>
         <div className="flex items-center justify-between mt-1.5 text-xs text-gray-400">
-          <span>{movie.release_date?.split('-')[0] || 'N/A'}</span>
+          <span>{releaseYear}</span>
           <div className="flex items-center gap-1">
             <span className="text-yellow-400">★</span>
-            <span>{movie.vote_average.toFixed(1)}</span>
+            <span>{movie.vote_average ? movie.vote_average.toFixed(1) : 'N/A'}</span>
           </div>
         </div>
         <div className="mt-2 flex flex-wrap gap-1 items-center justify-between">
           {status ? (
             <StatusBadge status={status} />
-          ) : showWatchlist ? ( // ✅ conditionally show button
+          ) : showWatchlist ? (
             <button
               onClick={addToWatchlist}
               disabled={isLoading}

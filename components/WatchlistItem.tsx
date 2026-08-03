@@ -127,7 +127,7 @@ export default function WatchlistItem({ entry }: Props) {
             <div className="flex items-center justify-between">
               <span className="text-xs text-gray-400">Your rating:</span>
               <div className="flex gap-1">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
+                {[1, 2, 3, 4, 5, 6, 7].map((star) => (
                   <button
                     key={star}
                     onClick={() => handleRatingChange(star)}

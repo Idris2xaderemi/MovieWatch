@@ -1,13 +1,19 @@
 // TMDB API types
 export interface Movie {
   id: number;
-  title: string;
-  poster_path: string;
-  backdrop_path: string;
-  release_date: string;
+  title?: string;
+  name?: string;
+  poster_path: string | null;
+  backdrop_path: string | null;
+  release_date?: string;
+  first_air_date?: string;
   vote_average: number;
   overview: string;
-  genre_ids?: number[];
+  popularity: number;
+  genre_ids: number[];
+  origin_country?: string[];
+  original_language?: string;
+  media_type?: 'movie' | 'tv';
 }
 
 export interface MovieDetail extends Movie {
