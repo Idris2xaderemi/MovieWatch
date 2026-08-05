@@ -5,6 +5,9 @@ import { connectToDatabase } from '@/lib/mongodb';
 import { Watchlist } from '@/lib/models/Watchlist';
 import WatchlistItem from '@/components/WatchlistItem';
 
+// app/search/page.tsx
+export const dynamic = 'force-dynamic';
+
 export default async function WatchlistPage() {
   const session = await getServerSession(authOptions);
   if (!session) {

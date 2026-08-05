@@ -76,7 +76,7 @@ export default function WatchlistItem({ entry }: Props) {
   return (
     <div className="card-hover rounded-xl overflow-hidden bg-surface border border-border group">
       <Link href={`/movie/${entry.movieId}`}>
-        <div className="relative aspect-[2/3] overflow-hidden bg-surface">
+        <div className="relative aspect-2/3 overflow-hidden bg-surface">
           {entry.posterPath ? (
             <Image
               src={`https://image.tmdb.org/t/p/w500${entry.posterPath}`}

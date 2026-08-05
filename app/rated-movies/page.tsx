@@ -28,7 +28,7 @@ export default async function RatedMoviesPage() {
           {movies.map((movie: any) => (
             <Link href={`/movie/${movie._id}`} key={movie._id}>
               <div className="card-hover rounded-xl overflow-hidden bg-surface border border-border group">
-                <div className="relative aspect-[2/3] overflow-hidden bg-surface">
+                <div className="relative aspect-2/3 overflow-hidden bg-surface">
                   <Image
                     src={`https://image.tmdb.org/t/p/w500${movie.posterPath}`}
                     alt={movie.title}
@@ -36,7 +36,7 @@ export default async function RatedMoviesPage() {
                     className="object-cover transition-transform duration-500 group-hover:scale-105"
                     sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
                   />
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
+                  <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/80 to-transparent p-3">
                     <div className="flex items-center gap-2 text-white">
                       <span className="text-yellow-400">⭐</span>
                       <span className="font-semibold">

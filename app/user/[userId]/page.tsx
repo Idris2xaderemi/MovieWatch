@@ -16,13 +16,13 @@ export default async function UserProfilePage({ params }: Props) {
   const { userId } = await params;
   await connectToDatabase();
 
-  const user = await User.findById(userId).lean();
+  // ✅ Cast the result to `any` to access properties safely
+  const user = (await User.findById(userId).lean()) as any;
   if (!user) notFound();
 
-  const entries = await Watchlist.find({ userId })
-    .sort({ addedAt: -1 })
-    .lean();
+  const entries = (await Watchlist.find({ userId }).sort({ addedAt: -1 }).lean()) as any[];
 
+  // Compute stats
   const totalMovies = entries.length;
   const totalWatched = entries.filter(e => e.status === 'watched').length;
   const totalWant = entries.filter(e => e.status === 'want').length;
@@ -78,8 +78,8 @@ export default async function UserProfilePage({ params }: Props) {
         <div className="movie-grid">
           {entries.map((entry) => (
             <div key={entry._id} className="card-hover rounded-xl overflow-hidden bg-surface border border-border group">
-              <Link href={`/movie/${entry.movieId}`} className="block">
-                <div className="relative aspect-[2/3] overflow-hidden bg-surface">
+              <Link href={`/movie/${entry.movieId}`}>
+                <div className="relative aspect-2/3 overflow-hidden bg-surface">
                   {entry.posterPath ? (
                     <Image
                       src={`https://image.tmdb.org/t/p/w500${entry.posterPath}`}
@@ -97,24 +97,26 @@ export default async function UserProfilePage({ params }: Props) {
                     </span>
                   </div>
                 </div>
-                <div className="p-3">
+              </Link>
+              <div className="p-3">
+                <Link href={`/movie/${entry.movieId}`}>
                   <h3 className="font-semibold text-sm truncate text-white hover:text-primary transition">
                     {entry.title}
                   </h3>
-                  <div className="flex items-center justify-between mt-1 text-xs text-gray-400">
-                    <span>{entry.releaseDate?.split('-')[0] || 'N/A'}</span>
-                    <StatusBadge status={entry.status} />
-                  </div>
-                  {entry.rating > 0 && (
-                    <div className="text-xs text-yellow-400 mt-1">
-                      ⭐ {entry.rating.toFixed(1)}
-                    </div>
-                  )}
-                  {entry.review && (
-                    <p className="text-xs text-gray-400 mt-1 line-clamp-2">{entry.review}</p>
-                  )}
+                </Link>
+                <div className="flex items-center justify-between mt-1 text-xs text-gray-400">
+                  <span>{entry.releaseDate?.split('-')[0] || 'N/A'}</span>
+                  <StatusBadge status={entry.status} />
                 </div>
-              </Link>
+                {entry.rating > 0 && (
+                  <div className="text-xs text-yellow-400 mt-1">
+                    ⭐ {entry.rating.toFixed(1)}
+                  </div>
+                )}
+                {entry.review && (
+                  <p className="text-xs text-gray-400 mt-1 line-clamp-2">{entry.review}</p>
+                )}
+              </div>
             </div>
           ))}
         </div>

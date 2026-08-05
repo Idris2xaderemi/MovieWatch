@@ -1,13 +1,28 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
+import type { NextConfig } from 'next';
+
+const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
-      { protocol: 'https', hostname: 'image.tmdb.org' },
-      { protocol: 'https', hostname: 'lh3.googleusercontent.com' }, // for Google avatars
+      {
+        protocol: 'https',
+        hostname: 'image.tmdb.org',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
-    domains: ['localhost'],
   },
-  serverExternalPackages: ['mongoose', 'mongodb', 'bson'],
+  turbopack: {
+    root: process.cwd(),
+  },
+  experimental: {
+    imgOptTimeoutInSeconds: 30,
+  },
 };
 
-module.exports = nextConfig;
+export default nextConfig;

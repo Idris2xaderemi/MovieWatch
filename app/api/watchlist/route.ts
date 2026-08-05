@@ -5,6 +5,7 @@ import { connectToDatabase } from '@/lib/mongodb';
 import { Watchlist } from '@/lib/models/Watchlist';
 import { revalidatePath } from 'next/cache';
 
+// ✅ POST – add to watchlist
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session) {
@@ -33,11 +34,15 @@ export async function POST(req: Request) {
       review: '',
     });
 
-    // Revalidate all pages that show watchlist status
+
+    // ... inside POST handler after creating entry ...
+
+// Revalidate all possible pages
     revalidatePath('/');
     revalidatePath('/watchlist');
     revalidatePath('/profile');
-    revalidatePath('/category', 'page'); // all category pages
+    revalidatePath('/category', 'page');
+    revalidatePath('/search', 'page');
     revalidatePath(`/movie/${body.movieId}`);
 
     return NextResponse.json(entry, { status: 201 });
@@ -48,4 +53,16 @@ export async function POST(req: Request) {
     console.error(error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
+}
+
+// ✅ GET – fetch user's watchlist
+export async function GET(req: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  await connectToDatabase();
+  const entries = await Watchlist.find({ userId: session.userId }).sort({ addedAt: -1 });
+  return NextResponse.json(entries);
 }

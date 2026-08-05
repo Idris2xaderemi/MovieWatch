@@ -1,14 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Movie } from '@/types';
+import { Movie } from '@/lib/tmdb';
 import MovieGrid from './MovieGrid';
 import Link from 'next/link';
 
 interface Props {
   title: string;
   icon?: string;
-  initialMovies: Movie[];
+  initialMovies: Movie[]; // these already have watchlistStatus attached
   category: string;
   showWatchlist?: boolean;
 }
@@ -20,6 +20,7 @@ export default function CategorySection({
   category,
   showWatchlist = true,
 }: Props) {
+  // We keep the initial movies; no need to re-fetch on client side
   const [movies] = useState<Movie[]>(initialMovies);
 
   return (

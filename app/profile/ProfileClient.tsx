@@ -106,6 +106,8 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
             <Image
               src={image || '/default-avatar.png'}
               alt="Profile"
+              sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
+
               fill
               className="object-cover"
             />

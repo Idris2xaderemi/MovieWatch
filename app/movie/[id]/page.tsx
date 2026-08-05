@@ -58,14 +58,14 @@ export default async function MovieDetailPage({ params }: Props) {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
       <div className="grid md:grid-cols-3 gap-8">
-        <div className="md:col-span-1 relative aspect-[2/3] rounded-xl overflow-hidden bg-surface">
+        <div className="md:col-span-1 relative aspect-2/3 rounded-xl overflow-hidden bg-surface">
           <Image
-            src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
-            alt={movie.title}
-            fill
-            className="object-cover"
-            priority
-          />
+          src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
+          alt={movie.title || 'Movie poster'}   // ✅ fallback
+          fill
+          className="object-cover"
+          priority
+        />
         </div>
         <div className="md:col-span-2 space-y-4">
           <h1 className="text-3xl md:text-4xl font-bold">{movie.title}</h1>
@@ -103,6 +103,7 @@ export default async function MovieDetailPage({ params }: Props) {
                           <Image
                             src={`https://image.tmdb.org/t/p/original${p.logo_path}`}
                             alt={p.provider_name}
+                            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
                             width={32}
                             height={32}
                             className="rounded"
@@ -121,6 +122,8 @@ export default async function MovieDetailPage({ params }: Props) {
                           <Image
                             src={`https://image.tmdb.org/t/p/original${p.logo_path}`}
                             alt={p.provider_name}
+                            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
+
                             width={32}
                             height={32}
                             className="rounded"
@@ -139,6 +142,8 @@ export default async function MovieDetailPage({ params }: Props) {
                           <Image
                             src={`https://image.tmdb.org/t/p/original${p.logo_path}`}
                             alt={p.provider_name}
+                            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
+
                             width={32}
                             height={32}
                             className="rounded"
@@ -155,18 +160,18 @@ export default async function MovieDetailPage({ params }: Props) {
 
           <div className="flex items-center gap-4 flex-wrap pt-4 border-t border-border">
             <StatusToggle
-              movieId={parseInt(id)}
-              initialStatus={watchlistEntry?.status || null}
-              initialRating={watchlistEntry?.rating || 0}
-              initialReview={watchlistEntry?.review || ''}
-              movieData={{
-                title: movie.title,
-                posterPath: movie.poster_path,
-                backdropPath: movie.backdrop_path,
-                releaseDate: movie.release_date,
-                voteAverage: movie.vote_average,
-              }}
-            />
+            movieId={parseInt(id)}
+            initialStatus={watchlistEntry?.status || null}
+            initialRating={watchlistEntry?.rating || 0}
+            initialReview={watchlistEntry?.review || ''}
+            movieData={{
+              title: movie.title || 'Untitled',          // ✅ fallback
+              posterPath: movie.poster_path || '',
+              backdropPath: movie.backdrop_path || '',
+              releaseDate: movie.release_date || '',
+              voteAverage: movie.vote_average || 0,
+            }}
+          />
           </div>
 
           <div className="pt-2">

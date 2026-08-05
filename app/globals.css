@@ -77,3 +77,15 @@ body {
     100% { opacity: 1; transform: translateY(0); }
   }
 }
+
+
+.scrollbar-thin::-webkit-scrollbar {
+  height: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(229, 9, 20, 0.3);
+  border-radius: 20px;
+}

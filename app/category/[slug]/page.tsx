@@ -8,6 +8,9 @@ interface Props {
   searchParams: Promise<{ page?: string }>;
 }
 
+// app/search/page.tsx
+export const dynamic = 'force-dynamic';
+
 const categoryTitles: Record<string, string> = {
   trending: 'Trending',
   popular: 'Popular',

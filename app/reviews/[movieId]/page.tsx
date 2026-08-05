@@ -48,6 +48,7 @@ export default async function ReviewsPage({ params }: Props) {
             src={`https://image.tmdb.org/t/p/w92${movie.poster_path}`}
             alt={movie.title || 'Movie poster'}
             fill
+            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
             className="object-cover"
           />
         </div>

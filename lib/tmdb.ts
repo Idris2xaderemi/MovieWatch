@@ -9,17 +9,25 @@ if (!API_TOKEN) {
 export interface Movie {
   id: number;
   title?: string;
-  name?: string;          // for TV shows
+  name?: string;
   poster_path: string | null;
   backdrop_path: string | null;
   release_date?: string;
   first_air_date?: string;
   vote_average: number;
   overview: string;
-  popularity: number;
+  popularity: number;                 // ✅ required (TMDB always returns it)
   genre_ids: number[];
   origin_country?: string[];
   original_language?: string;
+  media_type?: 'movie' | 'tv';
+  watchlistStatus?: 'want' | 'watching' | 'watched' | null; // ✅ for UI state
+}
+
+export interface MovieDetail extends Movie {
+  runtime: number;
+  genres: { id: number; name: string }[];
+  credits: { cast: { name: string; character: string }[] };
 }
 
 export interface TMDBResponse {
@@ -88,15 +96,15 @@ export async function getAnimeTV(page = 1): Promise<TMDBResponse> {
   return fetchTMDB(`/discover/tv?with_genres=16&page=${page}`);
 }
 
-export async function getMovieDetails(id: string) {
-  return fetchTMDB<Movie & { runtime: number; genres: { id: number; name: string }[]; credits: { cast: { name: string; character: string }[] } }>(
-    `/movie/${id}?append_to_response=credits`
-  );
+export async function getMovieDetails(id: string): Promise<MovieDetail> {
+  return fetchTMDB<MovieDetail>(`/movie/${id}?append_to_response=credits`);
 }
 
 export async function getMovieWatchProviders(id: string) {
   try {
-    return await fetchTMDB<{ results: { [country: string]: any } }>(`/movie/${id}/watch/providers`);
+    return await fetchTMDB<{ results: { [country: string]: any } }>(
+      `/movie/${id}/watch/providers`
+    );
   } catch {
     return null;
   }
@@ -110,10 +118,7 @@ export async function searchMovies(query: string, page = 1) {
 
 // ---------- Combined fetchers ----------
 export async function getPopularCombined(page = 1): Promise<{ results: Movie[]; total_pages: number }> {
-  const [movies, tv] = await Promise.all([
-    getPopularMovies(page),
-    getPopularTV(page),
-  ]);
+  const [movies, tv] = await Promise.all([getPopularMovies(page), getPopularTV(page)]);
   const combined = [...movies.results, ...tv.results]
     .sort((a, b) => b.popularity - a.popularity)
     .slice(0, 20);
@@ -124,10 +129,7 @@ export async function getPopularCombined(page = 1): Promise<{ results: Movie[]; 
 }
 
 export async function getTopRatedCombined(page = 1): Promise<{ results: Movie[]; total_pages: number }> {
-  const [movies, tv] = await Promise.all([
-    getTopRatedMovies(page),
-    getTopRatedTV(page),
-  ]);
+  const [movies, tv] = await Promise.all([getTopRatedMovies(page), getTopRatedTV(page)]);
   const combined = [...movies.results, ...tv.results]
     .sort((a, b) => b.vote_average - a.vote_average)
     .slice(0, 20);
@@ -138,10 +140,7 @@ export async function getTopRatedCombined(page = 1): Promise<{ results: Movie[];
 }
 
 export async function getAnimeCombined(page = 1): Promise<{ results: Movie[]; total_pages: number }> {
-  const [movies, tv] = await Promise.all([
-    getAnimeMovies(page),
-    getAnimeTV(page),
-  ]);
+  const [movies, tv] = await Promise.all([getAnimeMovies(page), getAnimeTV(page)]);
   const combined = [...movies.results, ...tv.results]
     .sort((a, b) => b.popularity - a.popularity)
     .slice(0, 20);

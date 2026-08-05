@@ -4,8 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import StatusBadge from './StatusBadge';
 import RatingStars from './RatingStars';
-import ReviewForm from '../ReviewForm';
-
+import ReviewForm from './ReviewForm';
 
 interface Props {
   movieId: number;
@@ -14,8 +13,8 @@ interface Props {
   initialReview?: string;
   movieData: {
     title: string;
-    posterPath: string;
-    backdropPath: string;
+    posterPath: string | null;   // ✅ allow null
+    backdropPath: string | null; // ✅ allow null
     releaseDate: string;
     voteAverage: number;
   };
@@ -37,7 +36,7 @@ export default function StatusToggle({
 
   const cycleStatus = async () => {
     if (!status) {
-      // If no status, add to watchlist with 'want'
+      // Add to watchlist
       setLoading(true);
       try {
         const res = await fetch('/api/watchlist', {
@@ -46,8 +45,8 @@ export default function StatusToggle({
           body: JSON.stringify({
             movieId,
             title: movieData.title,
-            posterPath: movieData.posterPath,
-            backdropPath: movieData.backdropPath,
+            posterPath: movieData.posterPath || '',
+            backdropPath: movieData.backdropPath || '',
             releaseDate: movieData.releaseDate,
             voteAverage: movieData.voteAverage,
           }),
@@ -82,7 +81,6 @@ export default function StatusToggle({
       });
       if (res.ok) {
         setStatus(newStatus);
-        // If we cycle away from 'watched', hide review form
         if (newStatus !== 'watched') {
           setShowReviewForm(false);
         }

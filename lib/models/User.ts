@@ -9,5 +9,4 @@ const UserSchema = new Schema({
   updatedAt: { type: Date, default: Date.now },
 });
 
-// NextAuth creates a 'users' collection – this model matches that schema.
 export const User = models.User || mongoose.model('User', UserSchema);

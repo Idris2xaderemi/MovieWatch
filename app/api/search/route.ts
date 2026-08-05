@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchMovies } from '@/lib/tmdb';
 
+// app/search/page.tsx
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   const query = req.nextUrl.searchParams.get('q');
   if (!query) {
