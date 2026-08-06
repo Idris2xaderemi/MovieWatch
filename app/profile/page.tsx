@@ -14,7 +14,8 @@ function serializeDoc(doc: any) {
 }
 
 export default async function ProfilePage() {
-  const session = await getServerSession(authOptions);
+  // ✅ Cast session to any to access userId
+  const session = (await getServerSession(authOptions)) as any;
   if (!session) {
     redirect('/api/auth/signin');
   }
@@ -32,7 +33,7 @@ export default async function ProfilePage() {
   // Compute member since from the ObjectId timestamp
   let memberSince = null;
   if (user) {
-    // ✅ Cast to any to safely access _id (TypeScript limitation with .lean())
+    // ✅ Cast to any to safely access _id
     const userAny = user as any;
     if (userAny._id) {
       const objectId = new mongoose.Types.ObjectId(userId);
@@ -47,7 +48,7 @@ export default async function ProfilePage() {
   const totalWant = entries.filter((e: any) => e.status === 'want').length;
   const totalWatching = entries.filter((e: any) => e.status === 'watching').length;
 
-  // ✅ Only count movies that have a rating > 0
+  // Only count movies that have a rating > 0
   const ratedEntries = entries.filter((e: any) => e.rating && e.rating > 0);
   const avgRating = ratedEntries.length > 0
     ? ratedEntries.reduce((acc: number, e: any) => acc + e.rating, 0) / ratedEntries.length

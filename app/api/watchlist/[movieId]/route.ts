@@ -5,12 +5,12 @@ import { connectToDatabase } from '@/lib/mongodb';
 import { Watchlist } from '@/lib/models/Watchlist';
 import { revalidatePath } from 'next/cache';
 
-// ✅ PATCH – update status, rating, review
+// ✅ PATCH – update status, rating, or review
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ movieId: string }> }
 ) {
-  const session = await getServerSession(authOptions);
+  const session = (await getServerSession(authOptions)) as any;
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -32,6 +32,11 @@ export async function PATCH(
     { new: true, lean: true }
   );
 
+  if (!updated) {
+    return NextResponse.json({ error: 'Entry not found' }, { status: 404 });
+  }
+
+  // Revalidate all pages that show watchlist status
   revalidatePath('/');
   revalidatePath('/watchlist');
   revalidatePath('/profile');
@@ -47,7 +52,7 @@ export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ movieId: string }> }
 ) {
-  const session = await getServerSession(authOptions);
+  const session = (await getServerSession(authOptions)) as any;
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -60,11 +65,16 @@ export async function DELETE(
 
   await connectToDatabase();
 
-  await Watchlist.findOneAndDelete({
+  const result = await Watchlist.findOneAndDelete({
     userId,
     movieId: parseInt(movieId),
   });
 
+  if (!result) {
+    return NextResponse.json({ error: 'Entry not found' }, { status: 404 });
+  }
+
+  // Revalidate all pages
   revalidatePath('/');
   revalidatePath('/watchlist');
   revalidatePath('/profile');
@@ -74,3 +84,20 @@ export async function DELETE(
 
   return NextResponse.json({ success: true });
 }
+
+// (Optional) GET – fetch a single watchlist entry (if needed)
+// export async function GET(
+//   req: Request,
+//   { params }: { params: Promise<{ movieId: string }> }
+// ) {
+//   const session = (await getServerSession(authOptions)) as any;
+//   if (!session) {
+//     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+//   }
+//   const { movieId } = await params;
+//   const userId = session.userId;
+//   await connectToDatabase();
+//   const entry = await Watchlist.findOne({ userId, movieId: parseInt(movieId) }).lean();
+//   if (!entry) return NextResponse.json({ status: null });
+//   return NextResponse.json(entry);
+// }

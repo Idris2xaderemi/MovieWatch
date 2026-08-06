@@ -16,12 +16,12 @@ export interface Movie {
   first_air_date?: string;
   vote_average: number;
   overview: string;
-  popularity: number;                 // ✅ required (TMDB always returns it)
+  popularity: number;
   genre_ids: number[];
   origin_country?: string[];
   original_language?: string;
   media_type?: 'movie' | 'tv';
-  watchlistStatus?: 'want' | 'watching' | 'watched' | null; // ✅ for UI state
+  watchlistStatus?: 'want' | 'watching' | 'watched' | null;
 }
 
 export interface MovieDetail extends Movie {

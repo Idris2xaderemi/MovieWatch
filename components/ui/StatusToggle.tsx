@@ -12,9 +12,9 @@ interface Props {
   initialRating?: number;
   initialReview?: string;
   movieData: {
-    title: string;
-    posterPath: string | null;   // ✅ allow null
-    backdropPath: string | null; // ✅ allow null
+    title?: string | null;
+    posterPath?: string | null;
+    backdropPath?: string | null;
     releaseDate: string;
     voteAverage: number;
   };
@@ -39,16 +39,17 @@ export default function StatusToggle({
       // Add to watchlist
       setLoading(true);
       try {
+        const title = movieData.title || 'Untitled';
         const res = await fetch('/api/watchlist', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             movieId,
-            title: movieData.title,
+            title,
             posterPath: movieData.posterPath || '',
             backdropPath: movieData.backdropPath || '',
-            releaseDate: movieData.releaseDate,
-            voteAverage: movieData.voteAverage,
+            releaseDate: movieData.releaseDate || '',
+            voteAverage: movieData.voteAverage || 0,
           }),
         });
         if (res.ok) {

@@ -16,23 +16,27 @@ export default async function UserProfilePage({ params }: Props) {
   const { userId } = await params;
   await connectToDatabase();
 
-  // ✅ Cast the result to `any` to access properties safely
+  // ✅ Cast user to any to access _id, name, image
   const user = (await User.findById(userId).lean()) as any;
   if (!user) notFound();
 
-  const entries = (await Watchlist.find({ userId }).sort({ addedAt: -1 }).lean()) as any[];
+  // ✅ Cast entries to any[] to avoid property errors
+  const entries = (await Watchlist.find({ userId })
+    .sort({ addedAt: -1 })
+    .lean()) as any[];
 
-  // Compute stats
+  // Stats
   const totalMovies = entries.length;
-  const totalWatched = entries.filter(e => e.status === 'watched').length;
-  const totalWant = entries.filter(e => e.status === 'want').length;
-  const totalWatching = entries.filter(e => e.status === 'watching').length;
-  const ratedEntries = entries.filter(e => e.rating && e.rating > 0);
+  const totalWatched = entries.filter((e: any) => e.status === 'watched').length;
+  const totalWant = entries.filter((e: any) => e.status === 'want').length;
+  const totalWatching = entries.filter((e: any) => e.status === 'watching').length;
+  const ratedEntries = entries.filter((e: any) => e.rating && e.rating > 0);
   const avgRating = ratedEntries.length > 0
-    ? ratedEntries.reduce((acc, e) => acc + e.rating, 0) / ratedEntries.length
+    ? ratedEntries.reduce((acc: number, e: any) => acc + e.rating, 0) / ratedEntries.length
     : 0;
 
-  const session = await getServerSession(authOptions);
+  // ✅ Cast session to any
+  const session = (await getServerSession(authOptions)) as any;
   const isOwnProfile = session?.userId === userId;
 
   return (
@@ -76,7 +80,7 @@ export default async function UserProfilePage({ params }: Props) {
         </div>
       ) : (
         <div className="movie-grid">
-          {entries.map((entry) => (
+          {entries.map((entry: any) => (
             <div key={entry._id} className="card-hover rounded-xl overflow-hidden bg-surface border border-border group">
               <Link href={`/movie/${entry.movieId}`}>
                 <div className="relative aspect-2/3 overflow-hidden bg-surface">

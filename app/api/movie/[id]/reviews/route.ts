@@ -22,13 +22,21 @@ export async function GET(
       review: { $ne: '' },
     }).lean();
 
-    // Get user names
+    if (entries.length === 0) {
+      return NextResponse.json([]);
+    }
+
+   
     const userIds = entries.map((e) => e.userId);
-    const users = await User.find({ _id: { $in: userIds } }).lean();
-    const userMap = users.reduce((acc, u) => {
-      acc[u._id.toString()] = u.name || 'Anonymous';
-      return acc;
-    }, {} as Record<string, string>);
+  
+    const users = (await User.find({ _id: { $in: userIds } }).lean()) as any[];
+
+    const userMap: Record<string, string> = {};
+    users.forEach((u) => {
+      // ✅ Safely convert ObjectId to string
+      const idStr = u._id.toString();
+      userMap[idStr] = u.name || 'Anonymous';
+    });
 
     const reviews = entries.map((e) => ({
       userId: e.userId,

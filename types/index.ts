@@ -1,36 +1,10 @@
-// TMDB API types
-export interface Movie {
-  id: number;
-  title: string;
-  poster_path: string;
-  backdrop_path: string;
-  release_date: string;
-  vote_average: number;
-  overview: string;
-  genre_ids?: number[];
-  popularity?: number;
-  original_language?: string;
-}
+// Import the types we need
+import type { Movie, MovieDetail, TMDBResponse } from '@/lib/tmdb';
 
-export interface MovieDetail extends Movie {
-  runtime: number;
-  genres: { id: number; name: string }[];
-  credits: {
-    cast: { 
-      name: string; 
-      character: string; 
-      profile_path?: string | null;
-      order?: number;
-    }[];
-  };
-  revenue?: number;
-  budget?: number;
-  tagline?: string;
-  homepage?: string;
-  status?: string;
-}
+// Re-export them for consumers
+export type { Movie, MovieDetail, TMDBResponse };
 
-// Watchlist entry from MongoDB
+// ---------- App‑specific types ----------
 export interface WatchlistEntry {
   _id: string;
   userId: string;
@@ -43,16 +17,16 @@ export interface WatchlistEntry {
   status: 'want' | 'watching' | 'watched';
   rating: number;
   addedAt: Date;
+  review?: string;
 }
 
-// API response for adding/updating watchlist
 export interface WatchlistApiResponse {
   success?: boolean;
   error?: string;
   data?: WatchlistEntry;
 }
 
-// Search results (client-side)
+// Now Movie is in scope because we imported it
 export interface SearchResults {
   page: number;
   results: Movie[];
@@ -60,7 +34,12 @@ export interface SearchResults {
   total_results: number;
 }
 
-// Session user (extends NextAuth default)
+export type WatchStatus = 'want' | 'watching' | 'watched';
+export type StatusMap = { [movieId: number]: WatchStatus };
+
+// ---------- Extend NextAuth Session ----------
+import 'next-auth';
+
 declare module 'next-auth' {
   interface Session {
     userId: string;
@@ -72,9 +51,3 @@ declare module 'next-auth' {
     };
   }
 }
-
-// Utility type for movie status mapping
-export type WatchStatus = 'want' | 'watching' | 'watched';
-
-// For components that need a map of movieId -> status
-export type StatusMap = { [movieId: number]: WatchStatus };

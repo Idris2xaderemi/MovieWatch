@@ -19,12 +19,13 @@ export const resolvers = {
       };
     },
     watchlist: async () => {
-      const session = await getServerSession(authOptions);
+      // ✅ Cast session to any to access userId
+      const session = (await getServerSession(authOptions)) as any;
       if (!session) throw new Error('Unauthorized');
       await connectToDatabase();
       const entries = (await Watchlist.find({ userId: session.userId })
         .sort({ addedAt: -1 })
-        .lean()) as any[]; // ✅ cast to any[]
+        .lean()) as any[];
       return entries.map((entry) => ({
         movieId: entry.movieId,
         title: entry.title,
@@ -36,7 +37,7 @@ export const resolvers = {
       }));
     },
     userStats: async () => {
-      const session = await getServerSession(authOptions);
+      const session = (await getServerSession(authOptions)) as any;
       if (!session) throw new Error('Unauthorized');
       await connectToDatabase();
       const entries = (await Watchlist.find({ userId: session.userId }).lean()) as any[];
@@ -54,7 +55,7 @@ export const resolvers = {
   },
   Mutation: {
     addToWatchlist: async (_: any, args: any) => {
-      const session = await getServerSession(authOptions);
+      const session = (await getServerSession(authOptions)) as any;
       if (!session) throw new Error('Unauthorized');
       await connectToDatabase();
       const entry = await Watchlist.create({
@@ -69,7 +70,6 @@ export const resolvers = {
         rating: 0,
         review: '',
       });
-      // entry is a Mongoose document; cast to any to access properties
       const e = entry as any;
       return {
         movieId: e.movieId,
@@ -82,14 +82,14 @@ export const resolvers = {
       };
     },
     updateWatchlistEntry: async (_: any, { movieId, status, rating, review }: any) => {
-      const session = await getServerSession(authOptions);
+      const session = (await getServerSession(authOptions)) as any;
       if (!session) throw new Error('Unauthorized');
       await connectToDatabase();
       const updated = (await Watchlist.findOneAndUpdate(
         { userId: session.userId, movieId },
         { status, rating, review },
         { new: true, lean: true }
-      )) as any; // ✅ cast to any
+      )) as any;
       if (!updated) throw new Error('Entry not found');
       return {
         movieId: updated.movieId,
@@ -102,7 +102,7 @@ export const resolvers = {
       };
     },
     deleteFromWatchlist: async (_: any, { movieId }: { movieId: number }) => {
-      const session = await getServerSession(authOptions);
+      const session = (await getServerSession(authOptions)) as any;
       if (!session) throw new Error('Unauthorized');
       await connectToDatabase();
       await Watchlist.findOneAndDelete({ userId: session.userId, movieId });

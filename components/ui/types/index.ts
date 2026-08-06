@@ -23,3 +23,17 @@ export interface WatchlistEntry {
 
 export type WatchStatus = 'want' | 'watching' | 'watched';
 export type StatusMap = { [movieId: number]: WatchStatus };
+
+// ---------- Extend NextAuth Session ----------
+import { Session } from 'next-auth';
+declare module 'next-auth' {
+  interface Session {
+    userId: string;
+    user: {
+      id: string;
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+    };
+  }
+}

@@ -5,7 +5,8 @@ import { connectToDatabase } from '@/lib/mongodb';
 import { User } from '@/lib/models/User';
 
 export async function PATCH(req: Request) {
-  const session = await getServerSession(authOptions);
+  // ✅ Cast session to any to access userId
+  const session = (await getServerSession(authOptions)) as any;
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }

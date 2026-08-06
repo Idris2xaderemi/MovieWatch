@@ -2,6 +2,7 @@ import { getMovieDetails, getMovieWatchProviders } from '@/lib/tmdb';
 import { Metadata } from 'next';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
+import RatingStars from '@/components/ui/RatingStars';
 import { getServerSession } from 'next-auth';
 import { connectToDatabase } from '@/lib/mongodb';
 import { Watchlist } from '@/lib/models/Watchlist';
@@ -18,7 +19,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const movie = await getMovieDetails(id);
   if (!movie) return { title: 'Movie not found' };
   return {
-    title: `${movie.title} – FilmHive`,
+    title: `${movie.title} – FilmHub`,
     description: movie.overview.slice(0, 160),
   };
 }
@@ -28,16 +29,24 @@ export default async function MovieDetailPage({ params }: Props) {
   const movie = await getMovieDetails(id);
   if (!movie) notFound();
 
-  const providersData = await getMovieWatchProviders(id);
+  // Fetch watch providers (gracefully handle 404)
+  let providersData = null;
+  try {
+    providersData = await getMovieWatchProviders(id);
+  } catch {
+    // ignore – providers not available
+  }
   const usProviders = providersData?.results?.US;
 
-  const session = await getServerSession(authOptions);
+  // ✅ Cast session to any to avoid userId TypeScript errors
+  const session = (await getServerSession(authOptions)) as any;
   let watchlistEntry = null;
   let avgUserRating = 0;
   let totalUserRatings = 0;
 
   await connectToDatabase();
 
+  // Get all ratings for this movie (from all users)
   const allEntries = await Watchlist.find({
     movieId: parseInt(id),
     rating: { $gt: 0 },
@@ -55,17 +64,20 @@ export default async function MovieDetailPage({ params }: Props) {
     });
   }
 
+  const canRate = watchlistEntry?.status === 'watched';
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
       <div className="grid md:grid-cols-3 gap-8">
         <div className="md:col-span-1 relative aspect-2/3 rounded-xl overflow-hidden bg-surface">
           <Image
-          src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
-          alt={movie.title || 'Movie poster'}   // ✅ fallback
-          fill
-          className="object-cover"
-          priority
-        />
+            src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
+            alt={movie.title || 'Movie poster'}
+            fill
+            className="object-cover"
+            priority
+            sizes="(max-width: 768px) 100vw, 33vw"
+          />
         </div>
         <div className="md:col-span-2 space-y-4">
           <h1 className="text-3xl md:text-4xl font-bold">{movie.title}</h1>
@@ -90,6 +102,7 @@ export default async function MovieDetailPage({ params }: Props) {
             ))}
           </div>
 
+          {/* Watch Providers */}
           {usProviders && (
             <div className="pt-2">
               <h3 className="text-sm font-semibold text-gray-400 mb-2">Where to Watch</h3>
@@ -103,7 +116,6 @@ export default async function MovieDetailPage({ params }: Props) {
                           <Image
                             src={`https://image.tmdb.org/t/p/original${p.logo_path}`}
                             alt={p.provider_name}
-                            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
                             width={32}
                             height={32}
                             className="rounded"
@@ -122,8 +134,6 @@ export default async function MovieDetailPage({ params }: Props) {
                           <Image
                             src={`https://image.tmdb.org/t/p/original${p.logo_path}`}
                             alt={p.provider_name}
-                            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
-
                             width={32}
                             height={32}
                             className="rounded"
@@ -142,8 +152,6 @@ export default async function MovieDetailPage({ params }: Props) {
                           <Image
                             src={`https://image.tmdb.org/t/p/original${p.logo_path}`}
                             alt={p.provider_name}
-                            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
-
                             width={32}
                             height={32}
                             className="rounded"
@@ -160,18 +168,24 @@ export default async function MovieDetailPage({ params }: Props) {
 
           <div className="flex items-center gap-4 flex-wrap pt-4 border-t border-border">
             <StatusToggle
-            movieId={parseInt(id)}
-            initialStatus={watchlistEntry?.status || null}
-            initialRating={watchlistEntry?.rating || 0}
-            initialReview={watchlistEntry?.review || ''}
-            movieData={{
-              title: movie.title || 'Untitled',          // ✅ fallback
-              posterPath: movie.poster_path || '',
-              backdropPath: movie.backdrop_path || '',
-              releaseDate: movie.release_date || '',
-              voteAverage: movie.vote_average || 0,
-            }}
-          />
+              movieId={parseInt(id)}
+              initialStatus={watchlistEntry?.status || null}
+              initialRating={watchlistEntry?.rating || 0}
+              initialReview={watchlistEntry?.review || ''}
+              movieData={{
+                title: movie.title || 'Untitled',
+                posterPath: movie.poster_path || '',
+                backdropPath: movie.backdrop_path || '',
+                releaseDate: movie.release_date || '',
+                voteAverage: movie.vote_average || 0,
+              }}
+            />
+            {canRate && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-400">Your rating:</span>
+                <RatingStars movieId={parseInt(id)} initialRating={watchlistEntry?.rating || 0} />
+              </div>
+            )}
           </div>
 
           <div className="pt-2">
@@ -187,7 +201,7 @@ export default async function MovieDetailPage({ params }: Props) {
             <div className="pt-4">
               <h3 className="font-semibold text-lg mb-2">Cast</h3>
               <div className="flex flex-wrap gap-3 text-sm">
-                {movie.credits.cast.slice(0, 6).map((actor) => (
+                {movie.credits.cast.slice(0, 6).map((actor: any) => (
                   <span key={actor.name} className="bg-surface px-3 py-1 rounded-full border border-border">
                     {actor.name} <span className="text-gray-500">as {actor.character}</span>
                   </span>

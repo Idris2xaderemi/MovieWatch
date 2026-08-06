@@ -1,12 +1,24 @@
 import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
-import { randomUUID } from 'crypto';
+import { v2 as cloudinary } from 'cloudinary';
+import { Readable } from 'stream';
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Helper to convert File to Buffer
+async function fileToBuffer(file: File): Promise<Buffer> {
+  const arrayBuffer = await file.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
+  const session = (await getServerSession(authOptions)) as any;
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -34,24 +46,36 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Image must be less than 5MB' }, { status: 400 });
     }
 
-    // Create uploads directory if it doesn't exist
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'profiles');
-    await mkdir(uploadDir, { recursive: true });
+    // Convert file to buffer
+    const buffer = await fileToBuffer(file);
 
-    // Generate unique filename
-    const extension = file.name.split('.').pop() || 'jpg';
-    const filename = `${userId}-${randomUUID()}.${extension}`;
-    const filePath = path.join(uploadDir, filename);
+    // Upload to Cloudinary
+    const uploadResult = await new Promise<any>((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: `filmhub/users/${userId}`,
+          public_id: `avatar`,
+          overwrite: true,
+          transformation: [{ width: 500, height: 500, crop: 'fill' }],
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      );
 
-    // Save file
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
+      // Write buffer to stream
+      const readableStream = new Readable();
+      readableStream.push(buffer);
+      readableStream.push(null);
+      readableStream.pipe(uploadStream);
+    });
 
-    // Return the URL
-    const imageUrl = `/uploads/profiles/${filename}`;
-    
-    return NextResponse.json({ imageUrl, success: true });
+    // Return the secure URL
+    return NextResponse.json({
+      imageUrl: uploadResult.secure_url,
+      success: true,
+    });
   } catch (error) {
     console.error('Upload error:', error);
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
