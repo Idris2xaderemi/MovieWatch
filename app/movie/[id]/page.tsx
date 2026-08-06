@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const movie = await getMovieDetails(id);
   if (!movie) return { title: 'Movie not found' };
   return {
-    title: `${movie.title} – MovieWatch`,
+    title: `${movie.title} – FilmHive`,
     description: movie.overview.slice(0, 160),
   };
 }

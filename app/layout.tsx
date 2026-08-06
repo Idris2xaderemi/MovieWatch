@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ['latin'] });
 
 
 export const metadata = {
-  title: 'MovieWatch – Your Personal Movie Watchlist',
+  title: 'FilmHive – Your Personal Movie Watchlist',
   description: 'Discover, track, and rate movies. Powered by TMDB.',
 };
 

@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const title = categoryTitles[slug] || 'Category';
   return {
-    title: `${title} – MovieWatch`,
+    title: `${title} – FilmHive`,
     description: `Explore ${title} movies and series`,
   };
 }

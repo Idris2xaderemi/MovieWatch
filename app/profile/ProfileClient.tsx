@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 
 interface Props {
   userId: string;
@@ -25,9 +26,23 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
   const [image, setImage] = useState(user?.image || '');
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
 
+  // Handle mount and welcome message
   useEffect(() => {
     setMounted(true);
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('welcome') === 'true') {
+        const alreadySeen = localStorage.getItem('welcomeSeen');
+        if (!alreadySeen) {
+          setShowWelcome(true);
+          localStorage.setItem('welcomeSeen', 'true');
+        }
+        // Remove the query param without page reload
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
   }, []);
 
   const formatDate = (date: Date) => {
@@ -87,7 +102,8 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
       if (res.ok) {
         const data = await res.json();
         setImage(data.imageUrl);
-        await handleSave(); // auto-save
+        // Auto-save after upload
+        await handleSave();
       } else {
         alert('Failed to upload image');
       }
@@ -98,16 +114,45 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
     }
   };
 
+  const handleDeleteAccount = async () => {
+    const confirmed = confirm(
+      'Are you sure? This will permanently delete your account and all your watchlist data (ratings, reviews, etc.). This action cannot be undone.'
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch('/api/user/delete', {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        await signOut({ redirect: true, callbackUrl: '/' });
+      } else {
+        alert('Failed to delete account. Please try again.');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('An error occurred.');
+    }
+  };
+
   return (
     <div>
+      {/* Welcome banner (only once) */}
+      {showWelcome && (
+        <div className="bg-primary/10 border border-primary/30 rounded-xl p-4 mb-6 text-center">
+          <p className="text-white">
+            👋 Welcome, <strong>{user?.name || 'User'}</strong>! Start building your watchlist by adding movies from the homepage.
+          </p>
+        </div>
+      )}
+
+      {/* Profile card */}
       <div className="bg-surface rounded-2xl border border-border p-6 md:p-8">
         <div className="flex flex-col md:flex-row items-center gap-6">
           <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-primary shadow-lg">
             <Image
               src={image || '/default-avatar.png'}
               alt="Profile"
-              sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
-
               fill
               className="object-cover"
             />
@@ -126,7 +171,7 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
           </div>
           <div className="flex-1 text-center md:text-left">
             {isEditing ? (
-              <div>
+              <div className="space-y-2">
                 <input
                   type="text"
                   value={name}
@@ -134,7 +179,7 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
                   className="w-full px-3 py-2 rounded-lg bg-background border border-border text-white"
                   placeholder="Your name"
                 />
-                {/* Image URL input removed */}
+                {/* Image URL input removed – only upload via avatar */}
               </div>
             ) : (
               <>
@@ -163,7 +208,10 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
                 </button>
               </>
             ) : (
-              <button onClick={() => setIsEditing(true)} className="btn-outline text-sm">
+              <button
+                onClick={() => setIsEditing(true)}
+                className="btn-outline text-sm"
+              >
                 Edit Profile
               </button>
             )}
@@ -171,6 +219,7 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
         </div>
       </div>
 
+      {/* Stats grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
         <StatCard label="Movies Watched" value={stats.totalWatched} color="text-primary" />
         <StatCard label="Want to Watch" value={stats.totalWant} color="text-yellow-400" />
@@ -178,6 +227,7 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
         <StatCard label="Average Rating" value={stats.avgRating} color="text-green-400" />
       </div>
 
+      {/* Recent activity */}
       <div className="mt-8">
         <h3 className="text-xl font-semibold mb-4">Recent Activity</h3>
         <div className="bg-surface rounded-xl border border-border divide-y divide-border">
@@ -188,7 +238,9 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
               <div key={entry._id} className="p-4 flex justify-between items-center">
                 <div>
                   <p className="font-medium">{entry.title}</p>
-                  <p className="text-sm text-gray-400">Rating: {entry.rating || 'Not rated'}</p>
+                  <p className="text-sm text-gray-400">
+                    Rating: {entry.rating || 'Not rated'}
+                  </p>
                 </div>
                 <span className="text-xs text-gray-500">
                   {mounted ? formatDate(entry.addedAt) : ''}
@@ -197,6 +249,16 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
             ))
           )}
         </div>
+      </div>
+
+      {/* Delete account */}
+      <div className="mt-8 pt-4 border-t border-border">
+        <button
+          onClick={handleDeleteAccount}
+          className="text-red-500 hover:text-red-400 text-sm font-medium transition"
+        >
+          Delete Account & All Data
+        </button>
       </div>
     </div>
   );

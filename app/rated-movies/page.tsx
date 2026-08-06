@@ -3,8 +3,8 @@ import Image from "next/image";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Top User Rated Movies – MovieWatch",
-  description: "Movies rated highest by the MovieWatch community",
+  title: "Top User Rated Movies – FilmHive",
+  description: "Movies rated highest by the FilmHive community",
 };
 
 export default async function RatedMoviesPage() {

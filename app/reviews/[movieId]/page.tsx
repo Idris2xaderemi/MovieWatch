@@ -11,9 +11,9 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { movieId } = await params;
   const movie = await getMovieDetails(movieId);
-  if (!movie) return { title: 'Reviews – MovieWatch' };
+  if (!movie) return { title: 'Reviews – FilmHive' };
   return {
-    title: `Reviews for ${movie.title} – MovieWatch`,
+    title: `Reviews for ${movie.title} – FilmHive`,
     description: `Community reviews for ${movie.title}`,
   };
 }

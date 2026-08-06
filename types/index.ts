@@ -61,9 +61,9 @@ export interface SearchResults {
 }
 
 // Session user (extends NextAuth default)
-declare module 'next-auth' {  
+declare module 'next-auth' {
   interface Session {
-    userId: string;  
+    userId: string;
     user: {
       id: string;
       name?: string | null;

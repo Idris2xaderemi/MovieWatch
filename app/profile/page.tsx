@@ -7,6 +7,7 @@ import { User } from '@/lib/models/User';
 import ProfileClient from './ProfileClient';
 import mongoose from 'mongoose';
 
+// Helper to serialize MongoDB documents to plain objects
 function serializeDoc(doc: any) {
   if (!doc) return null;
   return JSON.parse(JSON.stringify(doc));
@@ -14,32 +15,42 @@ function serializeDoc(doc: any) {
 
 export default async function ProfilePage() {
   const session = await getServerSession(authOptions);
-  if (!session) redirect('/api/auth/signin');
+  if (!session) {
+    redirect('/api/auth/signin');
+  }
 
   const userId = session.userId;
-  if (!userId) redirect('/api/auth/signin');
+  if (!userId) {
+    redirect('/api/auth/signin');
+  }
 
   await connectToDatabase();
 
+  // Fetch user from database using Mongoose
   const user = await User.findById(userId).lean();
 
-  // Member since from ObjectId timestamp
+  // Compute member since from the ObjectId timestamp
   let memberSince = null;
-  if (user?._id) {
-    const objectId = new mongoose.Types.ObjectId(userId);
-    memberSince = objectId.getTimestamp();
+  if (user) {
+    // ✅ Cast to any to safely access _id (TypeScript limitation with .lean())
+    const userAny = user as any;
+    if (userAny._id) {
+      const objectId = new mongoose.Types.ObjectId(userId);
+      memberSince = objectId.getTimestamp();
+    }
   }
 
+  // Fetch watchlist entries
   const entries = await Watchlist.find({ userId }).lean();
 
-  const totalWatched = entries.filter(e => e.status === 'watched').length;
-  const totalWant = entries.filter(e => e.status === 'want').length;
-  const totalWatching = entries.filter(e => e.status === 'watching').length;
+  const totalWatched = entries.filter((e: any) => e.status === 'watched').length;
+  const totalWant = entries.filter((e: any) => e.status === 'want').length;
+  const totalWatching = entries.filter((e: any) => e.status === 'watching').length;
 
-  // ✅ Average rating only from rated movies
-  const ratedEntries = entries.filter(e => e.rating && e.rating > 0);
+  // ✅ Only count movies that have a rating > 0
+  const ratedEntries = entries.filter((e: any) => e.rating && e.rating > 0);
   const avgRating = ratedEntries.length > 0
-    ? ratedEntries.reduce((acc, e) => acc + e.rating, 0) / ratedEntries.length
+    ? ratedEntries.reduce((acc: number, e: any) => acc + e.rating, 0) / ratedEntries.length
     : 0;
 
   const stats = {
@@ -50,7 +61,7 @@ export default async function ProfilePage() {
   };
 
   const recent = entries
-    .sort((a, b) => b.addedAt - a.addedAt)
+    .sort((a: any, b: any) => b.addedAt - a.addedAt)
     .slice(0, 5);
 
   return (
