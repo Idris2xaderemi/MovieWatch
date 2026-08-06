@@ -1,7 +1,7 @@
 import gql from 'graphql-tag';
 
 export const typeDefs = gql`
-  type Movie {
+  interface MovieInterface {
     id: Int!
     title: String!
     name: String
@@ -16,7 +16,34 @@ export const typeDefs = gql`
     watchlistStatus: String
   }
 
-  type MovieDetail extends Movie {
+  type Movie implements MovieInterface {
+    id: Int!
+    title: String!
+    name: String
+    posterPath: String
+    backdropPath: String
+    releaseDate: String
+    firstAirDate: String
+    voteAverage: Float!
+    overview: String!
+    popularity: Float!
+    genreIds: [Int!]!
+    watchlistStatus: String
+  }
+
+  type MovieDetail implements MovieInterface {
+    id: Int!
+    title: String!
+    name: String
+    posterPath: String
+    backdropPath: String
+    releaseDate: String
+    firstAirDate: String
+    voteAverage: Float!
+    overview: String!
+    popularity: Float!
+    genreIds: [Int!]!
+    watchlistStatus: String
     runtime: Int!
     genres: [Genre!]!
     credits: Credits!

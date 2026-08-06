@@ -25,8 +25,28 @@ if (!cached) {
 
 export async function connectToDatabase() {
   if (cached.conn) return cached.conn;
+
   if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGODB_URI).then((mongoose) => mongoose);
+    const opts = {
+      bufferCommands: false,
+      maxPoolSize: 10,
+      minPoolSize: 2,
+      socketTimeoutMS: 60000,
+      connectTimeoutMS: 30000,
+      serverSelectionTimeoutMS: 30000,
+      family: 4, // ✅ force IPv4 to avoid DNS issues
+    };
+
+    cached.promise = mongoose.connect(MONGODB_URI, opts)
+      .then((mongoose) => {
+        console.log('✅ MongoDB connected');
+        return mongoose;
+      })
+      .catch((err) => {
+        console.error('❌ MongoDB connection error:', err);
+        cached.promise = null;
+        throw err;
+      });
   }
   cached.conn = await cached.promise;
   return cached.conn;
@@ -37,4 +57,5 @@ export async function getMongoClient() {
   return (mongoose.connection as any).client as MongoClient;
 }
 
+// ✅ For NextAuth adapter – returns a promise that resolves to MongoClient
 export const clientPromise = getMongoClient();
