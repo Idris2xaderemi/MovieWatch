@@ -13,7 +13,7 @@ interface Props {
   params: Promise<{ id: string }>;
 }
 
-// Helper to safely get userId from session
+// Helper to safely extract userId from session
 function getUserId(session: Session | null): string | null {
   if (!session) return null;
   return session.userId || session.user?.id || null;
@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const movie = await getMovieDetails(id);
     if (!movie) return { title: 'Movie not found' };
     return {
-      title: `${movie.title} – MovieWatch`,
+      title: `${movie.title} – CineTracker`,
       description: movie.overview?.slice(0, 160) || '',
     };
   } catch {
@@ -36,10 +36,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function MovieDetailPage({ params }: Props) {
   try {
     const { id } = await params;
+
+    // Fetch movie details – will return null if 404
     const movie = await getMovieDetails(id);
     if (!movie) notFound();
 
-    // Fetch watch providers (silently fail if not available)
+    // Fetch watch providers (silent fail)
     let usProviders = null;
     try {
       const providersData = await getMovieWatchProviders(id);
@@ -48,7 +50,7 @@ export default async function MovieDetailPage({ params }: Props) {
       // ignore provider errors
     }
 
-    // ✅ Type the session correctly
+    // Get session and user ID
     const session = (await getServerSession(authOptions)) as Session | null;
     const userId = getUserId(session);
 
@@ -58,7 +60,7 @@ export default async function MovieDetailPage({ params }: Props) {
 
     await connectToDatabase();
 
-    // Get all user ratings for this movie
+    // Compute average rating from all users
     const allEntries = await Watchlist.find({
       movieId: parseInt(id),
       rating: { $gt: 0 },
@@ -69,15 +71,15 @@ export default async function MovieDetailPage({ params }: Props) {
       totalUserRatings = allEntries.length;
     }
 
-    // Get the user's own watchlist entry if logged in
+    // Get current user's watchlist entry
     if (userId) {
       watchlistEntry = await Watchlist.findOne({
-        userId: userId,
+        userId,
         movieId: parseInt(id),
       });
     }
 
-    // Fallback for missing poster
+    // Fallback poster
     const posterUrl = movie.poster_path
       ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
       : '/default-poster.png';
@@ -85,6 +87,7 @@ export default async function MovieDetailPage({ params }: Props) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
         <div className="grid md:grid-cols-3 gap-8">
+          {/* Poster */}
           <div className="md:col-span-1 relative aspect-2/3 rounded-xl overflow-hidden bg-surface">
             <Image
               src={posterUrl}
@@ -94,6 +97,8 @@ export default async function MovieDetailPage({ params }: Props) {
               priority
             />
           </div>
+
+          {/* Details */}
           <div className="md:col-span-2 space-y-4">
             <h1 className="text-3xl md:text-4xl font-bold">{movie.title || 'Untitled'}</h1>
             <div className="flex flex-wrap gap-4 text-sm text-gray-400">
@@ -109,6 +114,8 @@ export default async function MovieDetailPage({ params }: Props) {
             )}
 
             <p className="text-gray-300 leading-relaxed">{movie.overview || 'No description available.'}</p>
+
+            {/* Genres */}
             <div className="flex flex-wrap gap-2">
               {movie.genres?.map((g: any) => (
                 <span key={g.id} className="px-3 py-1 rounded-full bg-border text-xs text-gray-300">
@@ -117,6 +124,7 @@ export default async function MovieDetailPage({ params }: Props) {
               ))}
             </div>
 
+            {/* Where to Watch */}
             {usProviders && (
               <div className="pt-2">
                 <h3 className="text-sm font-semibold text-gray-400 mb-2">Where to Watch</h3>
@@ -180,6 +188,7 @@ export default async function MovieDetailPage({ params }: Props) {
               </div>
             )}
 
+            {/* Watchlist & Rating */}
             <div className="flex items-center gap-4 flex-wrap pt-4 border-t border-border">
               <StatusToggle
                 movieId={parseInt(id)}
@@ -196,6 +205,7 @@ export default async function MovieDetailPage({ params }: Props) {
               />
             </div>
 
+            {/* Reviews link */}
             <div className="pt-2">
               <Link
                 href={`/reviews/${id}`}
@@ -205,6 +215,7 @@ export default async function MovieDetailPage({ params }: Props) {
               </Link>
             </div>
 
+            {/* Cast */}
             {movie.credits?.cast && (
               <div className="pt-4">
                 <h3 className="font-semibold text-lg mb-2">Cast</h3>
@@ -223,6 +234,7 @@ export default async function MovieDetailPage({ params }: Props) {
     );
   } catch (error) {
     console.error('Movie detail error:', error);
+    // Fallback UI for unexpected errors
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
         <h2 className="text-2xl font-bold text-red-400">Something went wrong</h2>
