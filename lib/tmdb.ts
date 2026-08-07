@@ -96,8 +96,16 @@ export async function getAnimeTV(page = 1): Promise<TMDBResponse> {
   return fetchTMDB(`/discover/tv?with_genres=16&page=${page}`);
 }
 
-export async function getMovieDetails(id: string): Promise<MovieDetail> {
-  return fetchTMDB<MovieDetail>(`/movie/${id}?append_to_response=credits`);
+export async function getMovieDetails(id: string) {
+  try {
+    return await fetchTMDB<MovieDetail>(`/movie/${id}?append_to_response=credits`);
+  } catch (error: any) {
+    // If it's a 404, return null so the page can call notFound()
+    if (error.message?.includes('404')) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 export async function getMovieWatchProviders(id: string) {

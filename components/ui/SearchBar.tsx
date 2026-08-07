@@ -23,7 +23,7 @@ export default function SearchBar() {
         placeholder="Search movies..."
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        className="w-48 md:w-64 px-4 py-2 rounded-full bg-surface border border-border text-sm focus:outline-none focus:border-primary transition text-white placeholder-gray-500"
+        className="w-18 md:w-64 px-4 py-2 rounded-full bg-surface border border-border text-sm focus:outline-none focus:border-primary transition text-white placeholder-gray-500"
       />
       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
