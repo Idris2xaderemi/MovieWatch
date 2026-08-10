@@ -1,4 +1,4 @@
-import { getMovieDetails } from '@/lib/tmdb';
+import { getMovieDetails, getTVDetails } from '@/lib/tmdb';
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
 import Image from 'next/image';
@@ -8,27 +8,50 @@ interface Props {
   params: Promise<{ movieId: string }>;
 }
 
+// Helper to fetch either movie or TV details based on existence
+async function getTitleDetails(id: string) {
+  // Try movie first
+  const movie = await getMovieDetails(id);
+  if (movie) {
+    return {
+      ...movie,
+      title: movie.title || 'Untitled',
+      poster_path: movie.poster_path || '',
+    };
+  }
+  // Try TV
+  const tv = await getTVDetails(id);
+  if (tv) {
+    return {
+      ...tv,
+      title: tv.name || 'Untitled',
+      poster_path: tv.poster_path || '',
+    };
+  }
+  return null;
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { movieId } = await params;
-  const movie = await getMovieDetails(movieId);
-  if (!movie) return { title: 'Reviews – FilmHive' };
+  const titleData = await getTitleDetails(movieId);
+  if (!titleData) return { title: 'Not found' };
   return {
-    title: `Reviews for ${movie.title} – FilmHive`,
-    description: `Community reviews for ${movie.title}`,
+    title: `Reviews for ${titleData.title} – CineTracker`,
+    description: `Community reviews for ${titleData.title}`,
   };
 }
 
 export default async function ReviewsPage({ params }: Props) {
   const { movieId } = await params;
-  const movie = await getMovieDetails(movieId);
-  if (!movie) notFound();
+  const titleData = await getTitleDetails(movieId);
+  if (!titleData) notFound();
 
   const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
   let reviews = [];
   let fetchError = false;
 
   try {
-    const res = await fetch(`${baseUrl}/api/movie/${movieId}/reviews`, {
+    const res = await fetch(`${baseUrl}/api/reviews/${movieId}`, {
       cache: 'no-store',
     });
     if (res.ok) {
@@ -45,14 +68,13 @@ export default async function ReviewsPage({ params }: Props) {
       <div className="flex items-center gap-4 mb-6">
         <div className="relative w-16 h-16 rounded overflow-hidden">
           <Image
-            src={`https://image.tmdb.org/t/p/w92${movie.poster_path}`}
-            alt={movie.title || 'Movie poster'}
+            src={`https://image.tmdb.org/t/p/w92${titleData.poster_path}`}
+            alt={titleData.title}
             fill
-            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
             className="object-cover"
           />
         </div>
-        <h1 className="text-2xl font-bold">Reviews for {movie.title}</h1>
+        <h1 className="text-2xl font-bold">Reviews for {titleData.title}</h1>
       </div>
 
       {fetchError ? (
@@ -69,7 +91,6 @@ export default async function ReviewsPage({ params }: Props) {
             <div key={review.userId || index} className="bg-surface rounded-xl border border-border p-4">
               <div className="flex justify-between items-start">
                 <div>
-                  {/* ✅ Clickable reviewer name */}
                   <Link href={`/user/${review.userId}`} className="font-semibold text-white hover:text-primary transition">
                     {review.userName}
                   </Link>
@@ -86,7 +107,10 @@ export default async function ReviewsPage({ params }: Props) {
           ))}
         </div>
       )}
-      <div className="mt-6">
+      <div className="mt-6 flex gap-4">
+        <Link href={`/tv/${movieId}`} className="text-sm text-primary hover:underline">
+          ← Back to series
+        </Link>
         <Link href={`/movie/${movieId}`} className="text-sm text-primary hover:underline">
           ← Back to movie
         </Link>

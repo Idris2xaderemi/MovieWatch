@@ -17,9 +17,9 @@ export default function Navbar() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center font-bold text-white text-lg">
-              M
+              F
             </div>
-            <span className="text-xl font-bold">Movie<span className="text-primary">Watch</span></span>
+            <span className="text-xl font-bold">Film<span className="text-primary">Hub</span></span>
           </Link>
 
           {/* Desktop Nav */}

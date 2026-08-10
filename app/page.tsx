@@ -1,10 +1,12 @@
 import {
   getTrending,
-  getPopularCombined,
-  getTopRatedCombined,
+  getPopularMovies,
+  getTopRatedTV,
   getActionMovies,
   getComedyMovies,
-  getAnimeCombined,
+  getAnimeTV,
+  getAnimeMovies,
+  getSitcoms,
 } from '@/lib/tmdb';
 import CategoryRow from '@/components/ui/CategoryRow';
 import FeaturedCarousel from '@/components/ui/FeaturedCarousel';
@@ -15,8 +17,8 @@ import { Watchlist } from '@/lib/models/Watchlist';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'FilmHub – Discover Movies & Series',
-  description: 'Discover, track, and rate movies. Powered by TMDB.',
+  title: 'CineTracker – Discover Movies & Series',
+  description: 'Discover, track, and rate movies and series. Powered by TMDB.',
 };
 
 export const dynamic = 'force-dynamic';
@@ -26,24 +28,28 @@ interface Props {
 }
 
 const categoryConfigs = [
-  { slug: 'popular', title: '🌟 Popular', fetcher: getPopularCombined },
-  { slug: 'top-rated', title: '⭐ Top Rated', fetcher: getTopRatedCombined },
-  { slug: 'action', title: '💥 Action Movies', fetcher: getActionMovies },
-  { slug: 'comedy', title: '😂 Comedy Movies', fetcher: getComedyMovies },
-  { slug: 'anime', title: '🌸 Anime & Animation', fetcher: getAnimeCombined },
+  // Movies
+  { slug: 'popular-movies', title: '🎬 Popular Movies', fetcher: getPopularMovies, type: 'movie' },
+  { slug: 'action-movies', title: '💥 Action Movies', fetcher: getActionMovies, type: 'movie' },
+  { slug: 'comedy-movies', title: '😂 Comedy Movies', fetcher: getComedyMovies, type: 'movie' },
+  { slug: 'animations', title: '🎨 Animations', fetcher: getAnimeMovies, type: 'movie' },
+  // TV Series
+  { slug: 'top-rated-series', title: '⭐ Top Rated Series', fetcher: getTopRatedTV, type: 'tv' },
+  { slug: 'anime-series', title: '🌸 Anime Series', fetcher: getAnimeTV, type: 'tv' },
+  { slug: 'sitcoms', title: '📺 Sitcoms', fetcher: getSitcoms, type: 'tv' },
 ];
 
 const CAROUSEL_LIMIT = 6;
 const ROW_LIMIT = 10;
 
 export default async function HomePage({ searchParams }: Props) {
-  // Check for welcome parameter
   const params = await searchParams;
   const showWelcome = params?.welcome === 'true';
 
-  // Fetch trending for carousel
+  // Trending for carousel (movies only)
   const trendingData = await getTrending(1);
-  const carouselMovies = trendingData.results.slice(0, CAROUSEL_LIMIT);
+  const trendingMovies = trendingData.results.filter((item: any) => item.media_type === 'movie');
+  const carouselMovies = trendingMovies.slice(0, CAROUSEL_LIMIT);
 
   // Fetch all categories in parallel
   const results = await Promise.all(
@@ -55,12 +61,12 @@ export default async function HomePage({ searchParams }: Props) {
     movies: (results[index]?.results || []).slice(0, ROW_LIMIT),
   }));
 
-  // ✅ Explicitly type the session
   const session = (await getServerSession(authOptions)) as Session | null;
   let statusMap: { [movieId: number]: 'want' | 'watching' | 'watched' } = {};
 
   if (session?.userId) {
     await connectToDatabase();
+    // Fetch status for ALL movies and TV shows (since both use movieId)
     const allMovieIds = [
       ...carouselMovies.map((m: any) => m.id),
       ...categories.flatMap((cat) => cat.movies.map((m: any) => m.id)),
@@ -84,7 +90,6 @@ export default async function HomePage({ searchParams }: Props) {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      {/* Welcome banner for first-time users */}
       {showWelcome && session && (
         <div className="bg-primary/10 border border-primary/30 rounded-xl p-4 mb-6 text-center">
           <p className="text-white">
@@ -93,18 +98,17 @@ export default async function HomePage({ searchParams }: Props) {
         </div>
       )}
 
-      {/* Featured Carousel */}
       <FeaturedCarousel movies={attachStatus(carouselMovies)} />
 
-      {/* Category rows */}
       <div className="space-y-8">
         {categories.map((cat) => (
           <CategoryRow
             key={cat.slug}
             title={cat.title}
             category={cat.slug}
-            movies={attachStatus(cat.movies)}
-            showWatchlist={!!session}
+            movies={attachStatus(cat.movies)} // attach status to all
+            showWatchlist={!!session} // ✅ enable for all categories
+            mediaType={cat.type as 'movie' | 'tv'}
           />
         ))}
       </div>

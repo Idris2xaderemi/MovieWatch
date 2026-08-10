@@ -13,11 +13,17 @@ interface Props {
   category: string;
   movies: Movie[];
   showWatchlist?: boolean;
+  mediaType?: 'movie' | 'tv'; // ✅ new prop
 }
 
-export default function CategoryRow({ title, category, movies, showWatchlist = true }: Props) {
+export default function CategoryRow({
+  title,
+  category,
+  movies,
+  showWatchlist = true,
+  mediaType,
+}: Props) {
   const { data: session } = useSession();
-  const router = useRouter();
 
   return (
     <section className="py-4">
@@ -37,6 +43,7 @@ export default function CategoryRow({ title, category, movies, showWatchlist = t
               key={movie.id}
               movie={movie}
               showWatchlist={showWatchlist && !!session}
+              mediaType={mediaType || movie.media_type || 'movie'}
             />
           ))}
         </div>
@@ -46,11 +53,22 @@ export default function CategoryRow({ title, category, movies, showWatchlist = t
 }
 
 // Small horizontal card
-function MovieCardHorizontal({ movie, showWatchlist }: { movie: Movie; showWatchlist: boolean }) {
+function MovieCardHorizontal({
+  movie,
+  showWatchlist,
+  mediaType,
+}: {
+  movie: Movie;
+  showWatchlist: boolean;
+  mediaType: 'movie' | 'tv';
+}) {
   const { data: session } = useSession();
   const [status, setStatus] = useState(movie.watchlistStatus || null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+
+  // ✅ Determine correct link
+  const detailLink = `/${mediaType === 'tv' ? 'tv' : 'movie'}/${movie.id}`;
 
   const addToWatchlist = async () => {
     if (!session) return alert('Sign in first');
@@ -87,7 +105,7 @@ function MovieCardHorizontal({ movie, showWatchlist }: { movie: Movie; showWatch
 
   return (
     <div className="flex-none w-40 md:w-48 snap-start group">
-      <Link href={`/movie/${movie.id}`}>
+      <Link href={detailLink}>
         <div className="relative aspect-2/3 rounded-lg overflow-hidden bg-surface">
           {movie.poster_path ? (
             <Image
@@ -106,7 +124,7 @@ function MovieCardHorizontal({ movie, showWatchlist }: { movie: Movie; showWatch
         </div>
       </Link>
       <div className="mt-1.5">
-        <Link href={`/movie/${movie.id}`}>
+        <Link href={detailLink}>
           <h3 className="text-sm font-medium truncate hover:text-primary transition">{title}</h3>
         </Link>
         <div className="flex items-center justify-between text-xs text-gray-400">

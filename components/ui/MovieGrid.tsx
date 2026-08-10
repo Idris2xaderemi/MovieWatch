@@ -1,16 +1,18 @@
-import { Movie } from '@/lib/tmdb';
+import { Movie } from '@/types';
 import MovieCard from './MovieCard';
 
 interface Props {
   movies: Movie[];
   watchlistStatusMap?: { [movieId: number]: 'want' | 'watching' | 'watched' };
   showWatchlist?: boolean;
+  mediaType?: 'movie' | 'tv'; // ✅ new
 }
 
 export default function MovieGrid({
   movies,
   watchlistStatusMap = {},
   showWatchlist = true,
+  mediaType,
 }: Props) {
   return (
     <div className="movie-grid">
@@ -18,9 +20,9 @@ export default function MovieGrid({
         <MovieCard
           key={movie.id}
           movie={movie}
-    
-          watchlistStatus={movie.watchlistStatus || null} // extract from movie object
+          watchlistStatus={movie.watchlistStatus || null}
           showWatchlist={showWatchlist}
+          mediaType={mediaType}
         />
       ))}
     </div>

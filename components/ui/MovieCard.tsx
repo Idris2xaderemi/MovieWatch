@@ -1,6 +1,6 @@
 'use client';
 
-import { Movie } from '@/lib/tmdb';
+import { Movie } from '@/types';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
@@ -12,12 +12,14 @@ interface Props {
   movie: Movie;
   watchlistStatus?: 'want' | 'watching' | 'watched' | null;
   showWatchlist?: boolean;
+  mediaType?: 'movie' | 'tv'; // ✅ new prop
 }
 
 export default function MovieCard({
   movie,
   watchlistStatus: initialStatus,
   showWatchlist = true,
+  mediaType,
 }: Props) {
   const { data: session } = useSession();
   const [status, setStatus] = useState(initialStatus || null);
@@ -27,6 +29,10 @@ export default function MovieCard({
   useEffect(() => {
     setStatus(initialStatus || null);
   }, [initialStatus]);
+
+  // Determine link target
+  const type = mediaType || movie.media_type || 'movie';
+  const detailLink = `/${type === 'tv' ? 'tv' : 'movie'}/${movie.id}`;
 
   const addToWatchlist = async () => {
     if (!session) {
@@ -76,8 +82,8 @@ export default function MovieCard({
 
   return (
     <div className="card-hover rounded-xl overflow-hidden bg-surface border border-border group">
-      <Link href={`/movie/${movie.id}`}>
-        <div className="relative aspect-2/3 overflow-hidden bg-surface">
+      <Link href={detailLink}>
+        <div className="relative aspect-[2/3] overflow-hidden bg-surface">
           {movie.poster_path ? (
             <Image
               src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
@@ -89,7 +95,7 @@ export default function MovieCard({
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-border text-gray-500">No image</div>
           )}
-          <div className="absolute inset-0 bg-linear-to-t from-background/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
           <div className="absolute top-2 right-2">
             <span className="px-2 py-1 text-xs font-bold bg-primary rounded-md text-white shadow-lg">
               {movie.vote_average ? Math.round(movie.vote_average * 10) : 'N/A'}%
@@ -98,7 +104,7 @@ export default function MovieCard({
         </div>
       </Link>
       <div className="p-3 md:p-4">
-        <Link href={`/movie/${movie.id}`}>
+        <Link href={detailLink}>
           <h3 className="font-semibold text-sm md:text-base truncate text-white hover:text-primary transition">
             {displayTitle}
           </h3>

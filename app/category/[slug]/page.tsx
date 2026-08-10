@@ -2,31 +2,44 @@ import { getCategoryBySlug } from '@/lib/tmdb';
 import { Metadata } from 'next';
 import MovieGrid from '@/components/ui/MovieGrid';
 import { notFound } from 'next/navigation';
+import { getServerSession, Session } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { connectToDatabase } from '@/lib/mongodb';
+import { Watchlist } from '@/lib/models/Watchlist';
+
+export const dynamic = 'force-dynamic';
+
+const categoryTitles: Record<string, string> = {
+  'popular-movies': '🎬 Popular Movies',
+  'action-movies': '💥 Action Movies',
+  'comedy-movies': '😂 Comedy Movies',
+  'animations': '🎨 Animations',
+  'top-rated-series': '⭐ Top Rated Series',
+  'anime-series': '🌸 Anime Series',
+  'sitcoms': '📺 Sitcoms',
+};
+
+// Determine media type from slug
+const movieSlugs = ['popular-movies', 'action-movies', 'comedy-movies', 'animations'];
+const tvSlugs = ['top-rated-series', 'anime-series', 'sitcoms'];
+
+function getMediaType(slug: string): 'movie' | 'tv' {
+  if (movieSlugs.includes(slug)) return 'movie';
+  if (tvSlugs.includes(slug)) return 'tv';
+  return 'movie'; // fallback
+}
 
 interface Props {
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ page?: string }>;
 }
 
-// app/search/page.tsx
-export const dynamic = 'force-dynamic';
-
-const categoryTitles: Record<string, string> = {
-  trending: 'Trending',
-  popular: 'Popular',
-  'top-rated': 'Top Rated',
-  action: 'Action Movies',
-  comedy: 'Comedy Movies',
-  sitcoms: 'Sitcoms',
-  anime: 'Anime & Animation',
-};
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const title = categoryTitles[slug] || 'Category';
   return {
-    title: `${title} – FilmHive`,
-    description: `Explore ${title} movies and series`,
+    title: `${title} – CineTracker`,
+    description: `Explore ${title} on CineTracker`,
   };
 }
 
@@ -37,20 +50,43 @@ export default async function CategoryPage({ params, searchParams }: Props) {
 
   if (!categoryTitles[slug]) notFound();
 
-  let data;
-  try {
-    data = await getCategoryBySlug(slug, currentPage);
-  } catch {
-    notFound();
-  }
-
+  const data = await getCategoryBySlug(slug, currentPage);
   const movies = data.results || [];
   const totalPages = data.total_pages || 1;
+
+  const session = (await getServerSession(authOptions)) as Session | null;
+  let statusMap: { [id: number]: 'want' | 'watching' | 'watched' } = {};
+
+  // Only fetch watchlist statuses for movie categories
+  const isMovieCategory = movieSlugs.includes(slug);
+  if (session?.userId && movies.length > 0 && isMovieCategory) {
+    await connectToDatabase();
+    const ids = movies.map((m: any) => m.id);
+    const entries = await Watchlist.find({
+      userId: session.userId,
+      movieId: { $in: ids },
+    }).lean();
+    entries.forEach((entry: any) => {
+      statusMap[entry.movieId] = entry.status;
+    });
+  }
+
+  const moviesWithStatus = movies.map((m: any) => ({
+    ...m,
+    watchlistStatus: statusMap[m.id] || null,
+  }));
+
+  const mediaType = getMediaType(slug);
+  const showWatchlist = isMovieCategory && !!session;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <h1 className="text-3xl font-bold mb-6">{categoryTitles[slug]}</h1>
-      <MovieGrid movies={movies} />
+      <MovieGrid
+        movies={moviesWithStatus}
+        showWatchlist={showWatchlist}
+        mediaType={mediaType}
+      />
       {totalPages > 1 && (
         <div className="flex justify-center gap-3 mt-8">
           {currentPage > 1 && (
