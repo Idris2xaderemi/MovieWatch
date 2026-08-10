@@ -2,8 +2,8 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy – FilmHub',
-  description: 'Privacy policy for FilmHub',
+  title: 'Privacy Policy – FilmHive',
+  description: 'Privacy policy for FilmHive',
 };
 
 export default function PrivacyPage() {
@@ -12,7 +12,7 @@ export default function PrivacyPage() {
       <h1 className="text-3xl font-bold mb-6">Privacy Policy</h1>
       <div className="space-y-4 text-gray-300 leading-relaxed">
         <p>
-          <strong>FilmHub</strong> ("we", "our", "us") respects your privacy. This policy explains how we collect, use, and protect your personal information.
+          <strong>FilmHive</strong> ("we", "our", "us") respects your privacy. This policy explains how we collect, use, and protect your personal information.
         </p>
         <h2 className="text-xl font-semibold text-white mt-6">1. Information We Collect</h2>
         <p>

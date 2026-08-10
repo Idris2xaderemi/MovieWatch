@@ -19,14 +19,13 @@ const categoryTitles: Record<string, string> = {
   'sitcoms': '📺 Sitcoms',
 };
 
-// Determine media type from slug
 const movieSlugs = ['popular-movies', 'action-movies', 'comedy-movies', 'animations'];
 const tvSlugs = ['top-rated-series', 'anime-series', 'sitcoms'];
 
 function getMediaType(slug: string): 'movie' | 'tv' {
   if (movieSlugs.includes(slug)) return 'movie';
   if (tvSlugs.includes(slug)) return 'tv';
-  return 'movie'; // fallback
+  return 'movie'; 
 }
 
 interface Props {
@@ -38,8 +37,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const title = categoryTitles[slug] || 'Category';
   return {
-    title: `${title} – CineTracker`,
-    description: `Explore ${title} on CineTracker`,
+    title: `${title} – FilmHive`,
+    description: `Explore ${title} on FilmHive`,
   };
 }
 

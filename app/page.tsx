@@ -17,7 +17,7 @@ import { Watchlist } from '@/lib/models/Watchlist';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'CineTracker – Discover Movies & Series',
+  title: 'FilmHive – Discover Movies & Series',
   description: 'Discover, track, and rate movies and series. Powered by TMDB.',
 };
 

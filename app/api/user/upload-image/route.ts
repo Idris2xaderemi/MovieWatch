@@ -6,7 +6,7 @@ import { Readable } from 'stream';
 
 // Configure Cloudinary
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,  
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
     const uploadResult = await new Promise<any>((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
-          folder: `filmhub/users/${userId}`,
+          folder: `FilmHive/users/${userId}`,
           public_id: `avatar`,
           overwrite: true,
           transformation: [{ width: 500, height: 500, crop: 'fill' }],

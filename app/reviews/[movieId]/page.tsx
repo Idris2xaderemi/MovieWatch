@@ -36,7 +36,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const titleData = await getTitleDetails(movieId);
   if (!titleData) return { title: 'Not found' };
   return {
-    title: `Reviews for ${titleData.title} – CineTracker`,
+    title: `Reviews for ${titleData.title} – FilmHive`,
     description: `Community reviews for ${titleData.title}`,
   };
 }
@@ -109,7 +109,7 @@ export default async function ReviewsPage({ params }: Props) {
       )}
       <div className="mt-6 flex gap-4">
         <Link href={`/tv/${movieId}`} className="text-sm text-primary hover:underline">
-          ← Back to series
+          ← Homepage
         </Link>
         <Link href={`/movie/${movieId}`} className="text-sm text-primary hover:underline">
           ← Back to movie

@@ -3,8 +3,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'API & Attribution – FilmHub',
-  description: 'API attribution and credits for FilmHub',
+  title: 'API & Attribution – FilmHive',
+  description: 'API attribution and credits for FilmHive',
 };
 
 export default function ApiInfoPage() {
@@ -13,7 +13,7 @@ export default function ApiInfoPage() {
       <h1 className="text-3xl font-bold mb-6">API & Attribution</h1>
       <div className="space-y-4 text-gray-300 leading-relaxed">
         <p>
-          FilmHub is powered by the <strong>The Movie Database (TMDB)</strong> API. We are grateful for their extensive database of movies, TV shows, and cast/crew information.
+          FilmHive is powered by the <strong>The Movie Database (TMDB)</strong> API. We are grateful for their extensive database of movies, TV shows, and cast/crew information.
         </p>
         <div className="flex items-center gap-4 my-4 p-4 bg-surface rounded-lg border border-border">
           <Image
@@ -34,7 +34,7 @@ export default function ApiInfoPage() {
         </ul>
         <h2 className="text-xl font-semibold text-white mt-6">Open Source</h2>
         <p>
-          FilmHub is built with open‑source technologies: Next.js, React, Tailwind CSS, MongoDB, and NextAuth.js. The source code is available on GitHub.
+          FilmHive is built with open‑source technologies: Next.js, React, Tailwind CSS, MongoDB, and NextAuth.js. The source code is available on GitHub.
         </p>
       </div>
     </div>

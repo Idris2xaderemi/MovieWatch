@@ -12,12 +12,12 @@ export async function POST(req: Request) {
 
   try {
     const { data, error } = await resend.emails.send({
-      from: 'FilmHub <onboarding@resend.dev>', 
+      from: 'FilmHive <onboarding@resend.dev>', 
       to: [email],
-      subject: 'Welcome to CineTrack! 🎬',
+      subject: 'Welcome to FilmHive! 🎬',
       html: `
         <h1>Welcome ${name || 'user'}!</h1>
-        <p>Thanks for joining FilmHub. Start building your watchlist now.</p>
+        <p>Thanks for joining FilmHive. Start building your watchlist now.</p>
         <a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/watchlist">Go to your watchlist</a>
         <p>Happy watching!</p>
       `,

@@ -2,8 +2,8 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Terms of Service – FilmHub',
-  description: 'Terms of service for FilmHub',
+  title: 'Terms of Service – FilmHive',
+  description: 'Terms of service for FilmHive',
 };
 
 export default function TermsPage() {
@@ -12,11 +12,11 @@ export default function TermsPage() {
       <h1 className="text-3xl font-bold mb-6">Terms of Service</h1>
       <div className="space-y-4 text-gray-300 leading-relaxed">
         <p>
-          By using <strong>FilmHub</strong>, you agree to the following terms.
+          By using <strong>FilmHive</strong>, you agree to the following terms.
         </p>
         <h2 className="text-xl font-semibold text-white mt-6">1. Use of the Service</h2>
         <p>
-          FilmHub is a personal movie watchlist manager. You must be at least 13 years old to use this service.
+          FilmHive is a personal movie watchlist manager. You must be at least 13 years old to use this service.
         </p>
         <h2 className="text-xl font-semibold text-white mt-6">2. User Accounts</h2>
         <p>

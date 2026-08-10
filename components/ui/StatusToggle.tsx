@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession, signIn } from 'next-auth/react';
 import StatusBadge from './StatusBadge';
 import RatingStars from './RatingStars';
 import ReviewForm from './ReviewForm';
@@ -12,9 +13,9 @@ interface Props {
   initialRating?: number;
   initialReview?: string;
   movieData: {
-    title?: string | null;
-    posterPath?: string | null;
-    backdropPath?: string | null;
+    title: string;
+    posterPath: string | null;
+    backdropPath: string | null;
     releaseDate: string;
     voteAverage: number;
   };
@@ -27,6 +28,7 @@ export default function StatusToggle({
   initialReview = '',
   movieData,
 }: Props) {
+  const { data: session } = useSession();
   const router = useRouter();
   const [status, setStatus] = useState(initialStatus || null);
   const [loading, setLoading] = useState(false);
@@ -35,21 +37,24 @@ export default function StatusToggle({
   const statusOrder: ('want' | 'watching' | 'watched')[] = ['want', 'watching', 'watched'];
 
   const cycleStatus = async () => {
+    if (!session) {
+      signIn('google');
+      return;
+    }
+
     if (!status) {
-      // Add to watchlist
       setLoading(true);
       try {
-        const title = movieData.title || 'Untitled';
         const res = await fetch('/api/watchlist', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             movieId,
-            title,
+            title: movieData.title,
             posterPath: movieData.posterPath || '',
             backdropPath: movieData.backdropPath || '',
-            releaseDate: movieData.releaseDate || '',
-            voteAverage: movieData.voteAverage || 0,
+            releaseDate: movieData.releaseDate,
+            voteAverage: movieData.voteAverage,
           }),
         });
         if (res.ok) {
@@ -68,7 +73,6 @@ export default function StatusToggle({
       return;
     }
 
-    // Cycle status
     const currentIndex = statusOrder.indexOf(status);
     const nextIndex = (currentIndex + 1) % statusOrder.length;
     const newStatus = statusOrder[nextIndex];
@@ -82,9 +86,7 @@ export default function StatusToggle({
       });
       if (res.ok) {
         setStatus(newStatus);
-        if (newStatus !== 'watched') {
-          setShowReviewForm(false);
-        }
+        if (newStatus !== 'watched') setShowReviewForm(false);
         router.refresh();
       } else {
         alert('Failed to update status');
@@ -114,6 +116,19 @@ export default function StatusToggle({
     router.refresh();
   };
 
+  // Not logged in → show sign‑in button
+  if (!session) {
+    return (
+      <button
+        onClick={() => signIn('google')}
+        className="btn-primary text-sm px-4 py-2 rounded-full"
+      >
+        Sign in to add to watchlist
+      </button>
+    );
+  }
+
+  // Logged in, no status yet → show "Add to Watchlist"
   if (!status) {
     return (
       <button
@@ -126,6 +141,7 @@ export default function StatusToggle({
     );
   }
 
+  // Logged in, has status
   return (
     <div className="space-y-3">
       <button
@@ -138,8 +154,16 @@ export default function StatusToggle({
         <span className="text-gray-400 text-xs ml-1">(click to cycle)</span>
       </button>
 
+      {/* Show disclaimer if status is not 'watched' */}
+      {status !== 'watched' && (
+        <p className="text-sm text-gray-500 italic">
+          You need to mark this as "watched" before you can rate and review.
+        </p>
+      )}
+
+      {/* Show rating and review only if status is 'watched' */}
       {status === 'watched' && (
-        <div className="space-y-3">
+        <>
           <div className="flex items-center gap-3">
             <span className="text-sm text-gray-400">Your rating:</span>
             <RatingStars
@@ -165,7 +189,7 @@ export default function StatusToggle({
               onCancel={() => setShowReviewForm(false)}
             />
           )}
-        </div>
+        </>
       )}
     </div>
   );

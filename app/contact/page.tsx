@@ -2,8 +2,8 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Contact – FilmHub',
-  description: 'Contact us for support, feedback, or questions about FilmHub.',
+  title: 'Contact – FilmHive',
+  description: 'Contact us for support, feedback, or questions about FilmHive.',
 };
 
 export default function ContactPage() {

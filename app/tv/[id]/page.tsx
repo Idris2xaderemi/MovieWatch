@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const tv = await getTVDetails(String(tvId));
     if (!tv) return { title: 'Series not found' };
     return {
-      title: `${tv.name} – CineTracker`,
+      title: `${tv.name} – FilmHive`,
       description: tv.overview?.slice(0, 160) || '',
     };
   } catch {
@@ -48,9 +48,7 @@ export default async function TVDetailPage({ params }: Props) {
     try {
       const providersData = await getTVWatchProviders(String(tvId));
       usProviders = providersData?.results?.US || null;
-    } catch {
-      // ignore
-    }
+    } catch { /* ignore */ }
 
     const session = (await getServerSession(authOptions)) as Session | null;
     const userId = getUserId(session);
@@ -88,7 +86,7 @@ export default async function TVDetailPage({ params }: Props) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
         <div className="grid md:grid-cols-3 gap-8">
           {/* Poster */}
-          <div className="md:col-span-1 relative aspect-[2/3] rounded-xl overflow-hidden bg-surface">
+          <div className="md:col-span-1 relative aspect-2/3 rounded-xl overflow-hidden bg-surface">
             <Image
               src={posterUrl}
               alt={tv.name || 'Series poster'}
@@ -188,8 +186,8 @@ export default async function TVDetailPage({ params }: Props) {
               </div>
             )}
 
-            {/* ✅ Watchlist & Rating – using StatusToggle */}
-            <div className="flex items-center gap-4 flex-wrap pt-4 border-t border-border">
+            {/* ✅ Only StatusToggle – it handles everything */}
+            <div className="pt-4 border-t border-border">
               <StatusToggle
                 movieId={tvId}
                 initialStatus={watchlistEntry?.status || null}
