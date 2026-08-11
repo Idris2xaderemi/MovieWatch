@@ -8,24 +8,26 @@ interface Props {
   params: Promise<{ movieId: string }>;
 }
 
-// Helper to fetch either movie or TV details based on existence
+// Helper: try TV first, then movie
 async function getTitleDetails(id: string) {
-  // Try movie first
-  const movie = await getMovieDetails(id);
-  if (movie) {
-    return {
-      ...movie,
-      title: movie.title || 'Untitled',
-      poster_path: movie.poster_path || '',
-    };
-  }
-  // Try TV
+  // Try TV first (since TV shows often have different IDs)
   const tv = await getTVDetails(id);
   if (tv) {
     return {
       ...tv,
       title: tv.name || 'Untitled',
       poster_path: tv.poster_path || '',
+      type: 'tv' as const,
+    };
+  }
+  // Fallback to movie
+  const movie = await getMovieDetails(id);
+  if (movie) {
+    return {
+      ...movie,
+      title: movie.title || 'Untitled',
+      poster_path: movie.poster_path || '',
+      type: 'movie' as const,
     };
   }
   return null;
@@ -62,6 +64,8 @@ export default async function ReviewsPage({ params }: Props) {
   } catch {
     fetchError = true;
   }
+
+  const backLink = titleData.type === 'tv' ? `/tv/${movieId}` : `/movie/${movieId}`;
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
@@ -107,12 +111,9 @@ export default async function ReviewsPage({ params }: Props) {
           ))}
         </div>
       )}
-      <div className="mt-6 flex gap-4">
-        <Link href={`/tv/${movieId}`} className="text-sm text-primary hover:underline">
-          ← Homepage
-        </Link>
-        <Link href={`/movie/${movieId}`} className="text-sm text-primary hover:underline">
-          ← Back to movie
+      <div className="mt-6">
+        <Link href={backLink} className="text-sm text-primary hover:underline">
+          ← Back to {titleData.type === 'tv' ? 'series' : 'movie'}
         </Link>
       </div>
     </div>
