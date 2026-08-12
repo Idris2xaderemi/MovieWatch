@@ -4,37 +4,45 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import StatusBadge from './ui/StatusBadge';
+import RatingStars from './ui/RatingStars';
+import ReviewForm from './ui/ReviewForm';
+
+interface WatchlistEntry {
+  _id: string;
+  movieId: number;
+  title: string;
+  posterPath: string;
+  backdropPath: string;
+  releaseDate: string;
+  voteAverage: number;
+  status: 'want' | 'watching' | 'watched';
+  rating: number;
+  review?: string;
+  mediaType?: 'movie' | 'tv';
+}
 
 interface Props {
-  entry: {
-    _id: string;
-    movieId: number;
-    title: string;
-    posterPath: string;
-    backdropPath: string;
-    releaseDate: string;
-    voteAverage: number;
-    status: 'want' | 'watching' | 'watched';
-    rating: number;
-  };
+  entry: WatchlistEntry;
 }
 
 export default function WatchlistItem({ entry }: Props) {
   const router = useRouter();
+  const { data: session } = useSession();
   const [status, setStatus] = useState(entry.status);
   const [rating, setRating] = useState(entry.rating || 0);
   const [loading, setLoading] = useState(false);
+  const [showReviewForm, setShowReviewForm] = useState(false);
 
   const statusOrder: ('want' | 'watching' | 'watched')[] = ['want', 'watching', 'watched'];
-  const nextStatus = () => {
-    const currentIndex = statusOrder.indexOf(status);
-    const nextIndex = (currentIndex + 1) % statusOrder.length;
-    return statusOrder[nextIndex];
-  };
+  const mediaType = entry.mediaType || 'movie';
+  const detailLink = `/${mediaType === 'tv' ? 'tv' : 'movie'}/${entry.movieId}`;
 
   const handleStatusToggle = async () => {
-    const newStatus = nextStatus();
+    const currentIndex = statusOrder.indexOf(status);
+    const nextIndex = (currentIndex + 1) % statusOrder.length;
+    const newStatus = statusOrder[nextIndex];
     setLoading(true);
     try {
       const res = await fetch(`/api/watchlist/${entry.movieId}`, {
@@ -44,6 +52,7 @@ export default function WatchlistItem({ entry }: Props) {
       });
       if (res.ok) {
         setStatus(newStatus);
+        if (newStatus !== 'watched') setShowReviewForm(false);
         router.refresh();
       } else {
         alert('Failed to update status');
@@ -73,10 +82,15 @@ export default function WatchlistItem({ entry }: Props) {
     }
   };
 
+  const handleReviewSaved = () => {
+    setShowReviewForm(false);
+    router.refresh();
+  };
+
   return (
     <div className="card-hover rounded-xl overflow-hidden bg-surface border border-border group">
-      <Link href={`/movie/${entry.movieId}`}>
-        <div className="relative aspect-2/3 overflow-hidden bg-surface">
+      <Link href={detailLink}>
+        <div className="relative aspect-[2/3] overflow-hidden bg-surface">
           {entry.posterPath ? (
             <Image
               src={`https://image.tmdb.org/t/p/w500${entry.posterPath}`}
@@ -98,7 +112,7 @@ export default function WatchlistItem({ entry }: Props) {
         </div>
       </Link>
       <div className="p-3 md:p-4">
-        <Link href={`/movie/${entry.movieId}`}>
+        <Link href={detailLink}>
           <h3 className="font-semibold text-sm md:text-base truncate text-white hover:text-primary transition">
             {entry.title}
           </h3>
@@ -111,7 +125,6 @@ export default function WatchlistItem({ entry }: Props) {
           </div>
         </div>
 
-        {/* Status toggle and rating */}
         <div className="mt-3 space-y-2">
           <button
             onClick={handleStatusToggle}
@@ -124,23 +137,34 @@ export default function WatchlistItem({ entry }: Props) {
           </button>
 
           {status === 'watched' && (
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-gray-400">Your rating:</span>
-              <div className="flex gap-1">
-                {[1, 2, 3, 4, 5, 6, 7].map((star) => (
-                  <button
-                    key={star}
-                    onClick={() => handleRatingChange(star)}
-                    disabled={loading}
-                    className={`text-lg transition ${
-                      star <= rating ? 'text-yellow-400' : 'text-gray-600 hover:text-gray-400'
-                    }`}
-                  >
-                    ★
-                  </button>
-                ))}
+            <>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-gray-400">Your rating:</span>
+                <RatingStars
+                  movieId={entry.movieId}
+                  initialRating={rating}
+                  maxRating={7}
+                  session={session}
+                  onRatingChange={handleRatingChange}
+                />
               </div>
-            </div>
+
+              {!showReviewForm ? (
+                <button
+                  onClick={() => setShowReviewForm(true)}
+                  className="text-xs text-primary hover:underline"
+                >
+                  {entry.review ? 'Edit Review' : 'Add Review'}
+                </button>
+              ) : (
+                <ReviewForm
+                  movieId={entry.movieId}
+                  initialReview={entry.review || ''}
+                  onSave={handleReviewSaved}
+                  onCancel={() => setShowReviewForm(false)}
+                />
+              )}
+            </>
           )}
         </div>
       </div>

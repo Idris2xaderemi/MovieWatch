@@ -7,18 +7,21 @@ import StatusBadge from './StatusBadge';
 import RatingStars from './RatingStars';
 import ReviewForm from './ReviewForm';
 
+interface MovieData {
+  title: string;
+  posterPath: string | null;
+  backdropPath: string | null;
+  releaseDate: string;
+  voteAverage: number;
+  mediaType?: 'movie' | 'tv';
+}
+
 interface Props {
   movieId: number;
   initialStatus: 'want' | 'watching' | 'watched' | null;
   initialRating?: number;
   initialReview?: string;
-  movieData: {
-    title: string;
-    posterPath: string | null;
-    backdropPath: string | null;
-    releaseDate: string;
-    voteAverage: number;
-  };
+  movieData: MovieData;
 }
 
 export default function StatusToggle({
@@ -55,6 +58,7 @@ export default function StatusToggle({
             backdropPath: movieData.backdropPath || '',
             releaseDate: movieData.releaseDate,
             voteAverage: movieData.voteAverage,
+            mediaType: movieData.mediaType || 'movie',
           }),
         });
         if (res.ok) {
@@ -116,7 +120,6 @@ export default function StatusToggle({
     router.refresh();
   };
 
-  // Not logged in → show sign‑in button
   if (!session) {
     return (
       <button
@@ -128,7 +131,6 @@ export default function StatusToggle({
     );
   }
 
-  // Logged in, no status yet → show "Add to Watchlist"
   if (!status) {
     return (
       <button
@@ -141,7 +143,6 @@ export default function StatusToggle({
     );
   }
 
-  // Logged in, has status
   return (
     <div className="space-y-3">
       <button
@@ -154,14 +155,12 @@ export default function StatusToggle({
         <span className="text-gray-400 text-xs ml-1">(click to cycle)</span>
       </button>
 
-      {/* Show disclaimer if status is not 'watched' */}
       {status !== 'watched' && (
         <p className="text-sm text-gray-500 italic">
           You need to mark this as "watched" before you can rate and review.
         </p>
       )}
 
-      {/* Show rating and review only if status is 'watched' */}
       {status === 'watched' && (
         <>
           <div className="flex items-center gap-3">
@@ -170,6 +169,7 @@ export default function StatusToggle({
               movieId={movieId}
               initialRating={initialRating}
               maxRating={7}
+              session={session} // ✅ pass session down
               onRatingChange={handleRatingChange}
             />
           </div>

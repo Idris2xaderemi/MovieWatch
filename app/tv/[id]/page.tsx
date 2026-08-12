@@ -43,7 +43,6 @@ export default async function TVDetailPage({ params }: Props) {
     const tv = await getTVDetails(String(tvId));
     if (!tv) notFound();
 
-    // Fetch watch providers (silent fail)
     let usProviders = null;
     try {
       const providersData = await getTVWatchProviders(String(tvId));
@@ -59,7 +58,6 @@ export default async function TVDetailPage({ params }: Props) {
 
     await connectToDatabase();
 
-    // Compute average rating from all users
     const allEntries = await Watchlist.find({
       movieId: tvId,
       rating: { $gt: 0 },
@@ -70,7 +68,6 @@ export default async function TVDetailPage({ params }: Props) {
       totalUserRatings = allEntries.length;
     }
 
-    // Get current user's watchlist entry
     if (userId) {
       watchlistEntry = await Watchlist.findOne({
         userId,
@@ -85,7 +82,6 @@ export default async function TVDetailPage({ params }: Props) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
         <div className="grid md:grid-cols-3 gap-8">
-          {/* Poster */}
           <div className="md:col-span-1 relative aspect-2/3 rounded-xl overflow-hidden bg-surface">
             <Image
               src={posterUrl}
@@ -95,8 +91,6 @@ export default async function TVDetailPage({ params }: Props) {
               priority
             />
           </div>
-
-          {/* Details */}
           <div className="md:col-span-2 space-y-4">
             <h1 className="text-3xl md:text-4xl font-bold">{tv.name || 'Untitled'}</h1>
             <div className="flex flex-wrap gap-4 text-sm text-gray-400">
@@ -113,7 +107,6 @@ export default async function TVDetailPage({ params }: Props) {
 
             <p className="text-gray-300 leading-relaxed">{tv.overview || 'No description available.'}</p>
 
-            {/* Genres */}
             <div className="flex flex-wrap gap-2">
               {tv.genres?.map((g: any) => (
                 <span key={g.id} className="px-3 py-1 rounded-full bg-border text-xs text-gray-300">
@@ -122,7 +115,6 @@ export default async function TVDetailPage({ params }: Props) {
               ))}
             </div>
 
-            {/* Where to Watch */}
             {usProviders && (
               <div className="pt-2">
                 <h3 className="text-sm font-semibold text-gray-400 mb-2">Where to Watch</h3>
@@ -186,7 +178,6 @@ export default async function TVDetailPage({ params }: Props) {
               </div>
             )}
 
-            {/* ✅ Only StatusToggle – it handles everything */}
             <div className="pt-4 border-t border-border">
               <StatusToggle
                 movieId={tvId}
@@ -199,11 +190,11 @@ export default async function TVDetailPage({ params }: Props) {
                   backdropPath: tv.backdrop_path || '',
                   releaseDate: tv.first_air_date || '',
                   voteAverage: tv.vote_average || 0,
+                  mediaType: 'tv',
                 }}
               />
             </div>
 
-            {/* Reviews link */}
             <div className="pt-2">
               <Link
                 href={`/reviews/${tvId}`}
@@ -213,7 +204,6 @@ export default async function TVDetailPage({ params }: Props) {
               </Link>
             </div>
 
-            {/* Cast */}
             {tv.credits?.cast && (
               <div className="pt-4">
                 <h3 className="font-semibold text-lg mb-2">Cast</h3>
@@ -232,6 +222,11 @@ export default async function TVDetailPage({ params }: Props) {
     );
   } catch (error) {
     console.error('TV detail error:', error);
-    redirect('/');
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
+        <h2 className="text-2xl font-bold text-red-400">Something went wrong</h2>
+        <p className="text-gray-400 mt-2">We couldn't load this series. Please try again later.</p>
+      </div>
+    );
   }
 }

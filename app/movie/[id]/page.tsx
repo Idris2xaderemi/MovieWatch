@@ -35,6 +35,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function MovieDetailPage({ params }: Props) {
   try {
     const { id } = await params;
+    const movieId = parseInt(id, 10);
+    if (isNaN(movieId) || movieId <= 0) notFound();
 
     const movie = await getMovieDetails(id);
     if (!movie) notFound();
@@ -55,7 +57,7 @@ export default async function MovieDetailPage({ params }: Props) {
     await connectToDatabase();
 
     const allEntries = await Watchlist.find({
-      movieId: parseInt(id),
+      movieId: movieId,
       rating: { $gt: 0 },
     }).lean();
 
@@ -67,7 +69,7 @@ export default async function MovieDetailPage({ params }: Props) {
     if (userId) {
       watchlistEntry = await Watchlist.findOne({
         userId,
-        movieId: parseInt(id),
+        movieId: movieId,
       });
     }
 
@@ -87,7 +89,6 @@ export default async function MovieDetailPage({ params }: Props) {
               priority
             />
           </div>
-
           <div className="md:col-span-2 space-y-4">
             <h1 className="text-3xl md:text-4xl font-bold">{movie.title || 'Untitled'}</h1>
             <div className="flex flex-wrap gap-4 text-sm text-gray-400">
@@ -116,16 +117,68 @@ export default async function MovieDetailPage({ params }: Props) {
               <div className="pt-2">
                 <h3 className="text-sm font-semibold text-gray-400 mb-2">Where to Watch</h3>
                 <div className="flex flex-wrap gap-4">
-                  {/* ... provider display ... */}
+                  {usProviders.flatrate && (
+                    <div>
+                      <p className="text-xs text-gray-500">Streaming</p>
+                      <div className="flex gap-2 mt-1">
+                        {usProviders.flatrate.map((p: any) => (
+                          <div key={p.provider_id} className="w-8 h-8 rounded bg-white/10 flex items-center justify-center">
+                            <Image
+                              src={`https://image.tmdb.org/t/p/original${p.logo_path}`}
+                              alt={p.provider_name}
+                              width={32}
+                              height={32}
+                              className="rounded"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {usProviders.rent && (
+                    <div>
+                      <p className="text-xs text-gray-500">Rent</p>
+                      <div className="flex gap-2 mt-1">
+                        {usProviders.rent.map((p: any) => (
+                          <div key={p.provider_id} className="w-8 h-8 rounded bg-white/10 flex items-center justify-center">
+                            <Image
+                              src={`https://image.tmdb.org/t/p/original${p.logo_path}`}
+                              alt={p.provider_name}
+                              width={32}
+                              height={32}
+                              className="rounded"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {usProviders.buy && (
+                    <div>
+                      <p className="text-xs text-gray-500">Buy</p>
+                      <div className="flex gap-2 mt-1">
+                        {usProviders.buy.map((p: any) => (
+                          <div key={p.provider_id} className="w-8 h-8 rounded bg-white/10 flex items-center justify-center">
+                            <Image
+                              src={`https://image.tmdb.org/t/p/original${p.logo_path}`}
+                              alt={p.provider_name}
+                              width={32}
+                              height={32}
+                              className="rounded"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <p className="text-xs text-gray-500 w-full">Data from JustWatch</p>
                 </div>
               </div>
             )}
 
-            {/* ✅ Only StatusToggle – it handles everything */}
             <div className="pt-4 border-t border-border">
               <StatusToggle
-                movieId={parseInt(id)}
+                movieId={movieId}
                 initialStatus={watchlistEntry?.status || null}
                 initialRating={watchlistEntry?.rating || 0}
                 initialReview={watchlistEntry?.review || ''}
@@ -135,13 +188,14 @@ export default async function MovieDetailPage({ params }: Props) {
                   backdropPath: movie.backdrop_path || '',
                   releaseDate: movie.release_date || '',
                   voteAverage: movie.vote_average || 0,
+                  mediaType: 'movie',
                 }}
               />
             </div>
 
             <div className="pt-2">
               <Link
-                href={`/reviews/${id}`}
+                href={`/reviews/${movieId}`}
                 className="text-sm text-primary hover:underline inline-flex items-center gap-1"
               >
                 View community reviews →

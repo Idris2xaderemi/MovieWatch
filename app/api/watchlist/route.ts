@@ -5,7 +5,6 @@ import { connectToDatabase } from '@/lib/mongodb';
 import { Watchlist } from '@/lib/models/Watchlist';
 import { revalidatePath } from 'next/cache';
 
-// Helper to safely get userId from session
 function getUserId(session: Session | null): string | null {
   if (!session) return null;
   return session.userId || session.user?.id || null;
@@ -14,7 +13,6 @@ function getUserId(session: Session | null): string | null {
 export async function POST(req: Request) {
   try {
     const session = (await getServerSession(authOptions)) as Session | null;
-
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -25,7 +23,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { movieId, title, posterPath, backdropPath, releaseDate, voteAverage } = body;
+    const { movieId, title, posterPath, backdropPath, releaseDate, voteAverage, mediaType } = body;
 
     if (!movieId || !title) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -46,6 +44,7 @@ export async function POST(req: Request) {
       backdropPath: backdropPath || '',
       releaseDate: releaseDate || '',
       voteAverage: voteAverage || 0,
+      mediaType: mediaType || 'movie',
       status: 'want',
       rating: 0,
       review: '',
@@ -55,10 +54,11 @@ export async function POST(req: Request) {
     revalidatePath('/watchlist');
     revalidatePath('/profile');
     revalidatePath(`/movie/${movieId}`);
+    revalidatePath(`/tv/${movieId}`);
 
     return NextResponse.json(entry, { status: 201 });
   } catch (error: any) {
-    console.error('Error in POST /api/watchlist:', error);
+    console.error('❌ Error in POST /api/watchlist:', error);
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: 500 }
@@ -69,7 +69,6 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   try {
     const session = (await getServerSession(authOptions)) as Session | null;
-
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -83,7 +82,7 @@ export async function GET(req: Request) {
     const entries = await Watchlist.find({ userId }).sort({ addedAt: -1 }).lean();
     return NextResponse.json(entries);
   } catch (error: any) {
-    console.error('Error in GET /api/watchlist:', error);
+    console.error('❌ Error in GET /api/watchlist:', error);
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: 500 }
