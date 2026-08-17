@@ -46,39 +46,60 @@ export default async function HomePage({ searchParams }: Props) {
   const params = await searchParams;
   const showWelcome = params?.welcome === 'true';
 
-  // Trending for carousel (movies only)
-  const trendingData = await getTrending(1);
-  const trendingMovies = trendingData.results.filter((item: any) => item.media_type === 'movie');
-  const carouselMovies = trendingMovies.slice(0, CAROUSEL_LIMIT);
+  // ✅ Trending with error handling and type guard
+  let carouselMovies: any[] = [];
+  try {
+    const trendingData = await getTrending(1);
+    carouselMovies = trendingData.results
+      .filter((item: any) => item.media_type === 'movie' && item.id)
+      .slice(0, CAROUSEL_LIMIT);
+  } catch (error) {
+    console.error('Failed to fetch trending:', error);
+  }
 
-  // Fetch all categories in parallel
-  const results = await Promise.all(
-    categoryConfigs.map(({ fetcher }) => fetcher(1))
+  // ✅ Categories with individual error handling
+  const categories = await Promise.all(
+    categoryConfigs.map(async (config) => {
+      try {
+        const data = await config.fetcher(1);
+        return {
+          ...config,
+          movies: (data.results || [])
+            .filter((m: any) => m.id)
+            .slice(0, ROW_LIMIT),
+        };
+      } catch (error) {
+        console.error(`Failed to fetch ${config.slug}:`, error);
+        return {
+          ...config,
+          movies: [],
+        };
+      }
+    })
   );
 
-  const categories = categoryConfigs.map((config, index) => ({
-    ...config,
-    movies: (results[index]?.results || []).slice(0, ROW_LIMIT),
-  }));
-
+  // ✅ Session and watchlist statuses
   const session = (await getServerSession(authOptions)) as Session | null;
   let statusMap: { [movieId: number]: 'want' | 'watching' | 'watched' } = {};
 
   if (session?.userId) {
-    await connectToDatabase();
-    // Fetch status for ALL movies and TV shows (since both use movieId)
-    const allMovieIds = [
-      ...carouselMovies.map((m: any) => m.id),
-      ...categories.flatMap((cat) => cat.movies.map((m: any) => m.id)),
-    ];
-    if (allMovieIds.length > 0) {
-      const entries = await Watchlist.find({
-        userId: session.userId,
-        movieId: { $in: allMovieIds },
-      }).lean();
-      entries.forEach((entry: any) => {
-        statusMap[entry.movieId] = entry.status;
-      });
+    try {
+      await connectToDatabase();
+      const allMovieIds = [
+        ...carouselMovies.map((m) => m.id),
+        ...categories.flatMap((cat) => cat.movies.map((m) => m.id)),
+      ];
+      if (allMovieIds.length > 0) {
+        const entries = await Watchlist.find({
+          userId: session.userId,
+          movieId: { $in: allMovieIds },
+        }).lean();
+        entries.forEach((entry: any) => {
+          statusMap[entry.movieId] = entry.status;
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch watchlist statuses:', error);
     }
   }
 
@@ -98,7 +119,9 @@ export default async function HomePage({ searchParams }: Props) {
         </div>
       )}
 
-      <FeaturedCarousel movies={attachStatus(carouselMovies)} />
+      {carouselMovies.length > 0 && (
+        <FeaturedCarousel movies={attachStatus(carouselMovies)} />
+      )}
 
       <div className="space-y-8">
         {categories.map((cat) => (
@@ -106,8 +129,8 @@ export default async function HomePage({ searchParams }: Props) {
             key={cat.slug}
             title={cat.title}
             category={cat.slug}
-            movies={attachStatus(cat.movies)} // attach status to all
-            showWatchlist={!!session} // ✅ enable for all categories
+            movies={attachStatus(cat.movies)}
+            showWatchlist={!!session}
             mediaType={cat.type as 'movie' | 'tv'}
           />
         ))}

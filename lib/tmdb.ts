@@ -56,25 +56,79 @@ export interface TMDBResponse {
   total_results: number;
 }
 
-// ---------- Core fetch ----------
-async function fetchTMDB<T = TMDBResponse>(endpoint: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${endpoint}`, {
-    headers: {
-      Authorization: `Bearer ${API_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-    next: { revalidate: 3600 },
-    ...options,
-  });
-  if (!res.ok) {
-    // ✅ Only log errors that are NOT 404 (to reduce noise)
-    if (res.status !== 404) {
-      const errorText = await res.text();
-      console.error(`TMDB error ${res.status}: ${errorText}`);
-    }
-    throw new Error(`TMDB error: ${res.status}`);
+// ---------- Core fetch with retry and timeout ----------
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeout = 15000
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const res = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return res;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
   }
-  return res.json();
+}
+
+async function fetchTMDB<T = TMDBResponse>(
+  endpoint: string,
+  options?: RequestInit,
+  retries = 2
+): Promise<T> {
+  const url = `${BASE_URL}${endpoint}`;
+  const headers = {
+    Authorization: `Bearer ${API_TOKEN}`,
+    'Content-Type': 'application/json',
+  };
+
+  let lastError: Error | undefined;
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetchWithTimeout(
+        url,
+        {
+          headers,
+          next: { revalidate: 3600 },
+          ...options,
+        },
+        15000
+      );
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        if (res.status !== 404 && res.status !== 401) {
+          console.error(`TMDB error ${res.status}: ${errorText}`);
+        }
+        if (res.status === 404 || res.status === 401) {
+          throw new Error(`TMDB error: ${res.status}`);
+        }
+        throw new Error(`TMDB error: ${res.status}`);
+      }
+
+      return await res.json();
+    } catch (error: any) {
+      lastError = error;
+      if (attempt === retries) break;
+      if (error.message?.includes('404') || error.message?.includes('401')) {
+        throw error;
+      }
+      console.warn(`TMDB fetch attempt ${attempt + 1} failed, retrying...`);
+      await new Promise((resolve) =>
+        setTimeout(resolve, 1000 * Math.pow(2, attempt))
+      );
+    }
+  }
+
+  throw lastError || new Error('TMDB fetch failed after retries');
 }
 
 // ---------- Movie Fetchers ----------
@@ -165,43 +219,78 @@ export async function searchMovies(query: string, page = 1) {
   );
 }
 
-// ---------- Category Dispatcher ----------
+// ---------- Combined fetchers ----------
+export async function getPopularCombined(page = 1): Promise<{ results: Movie[]; total_pages: number }> {
+  const [movies, tv] = await Promise.all([
+    getPopularMovies(page),
+    getPopularTV(page),
+  ]);
+  const combined = [...movies.results, ...tv.results]
+    .sort((a, b) => b.popularity - a.popularity)
+    .slice(0, 20);
+  return {
+    results: combined,
+    total_pages: Math.max(movies.total_pages || 1, tv.total_pages || 1),
+  };
+}
+
+export async function getTopRatedCombined(page = 1): Promise<{ results: Movie[]; total_pages: number }> {
+  const [movies, tv] = await Promise.all([
+    getTopRatedMovies(page),
+    getTopRatedTV(page),
+  ]);
+  const combined = [...movies.results, ...tv.results]
+    .sort((a, b) => b.vote_average - a.vote_average)
+    .slice(0, 20);
+  return {
+    results: combined,
+    total_pages: Math.max(movies.total_pages || 1, tv.total_pages || 1),
+  };
+}
+
+export async function getAnimeCombined(page = 1): Promise<{ results: Movie[]; total_pages: number }> {
+  const [movies, tv] = await Promise.all([
+    getAnimeMovies(page),
+    getAnimeTV(page),
+  ]);
+  const combined = [...movies.results, ...tv.results]
+    .sort((a, b) => b.popularity - a.popularity)
+    .slice(0, 20);
+  return {
+    results: combined,
+    total_pages: Math.max(movies.total_pages || 1, tv.total_pages || 1),
+  };
+}
+
+// ---------- Category dispatcher (FINAL VERSION) ----------
 export async function getCategoryBySlug(
   slug: string,
   page = 1
 ): Promise<{ results: Movie[]; total_pages: number }> {
-  switch (slug) {
-    // Movies
-    case 'popular-movies': {
-      const data = await getPopularMovies(page);
-      return { results: data.results, total_pages: data.total_pages };
-    }
-    case 'action-movies': {
-      const data = await getActionMovies(page);
-      return { results: data.results, total_pages: data.total_pages };
-    }
-    case 'comedy-movies': {
-      const data = await getComedyMovies(page);
-      return { results: data.results, total_pages: data.total_pages };
-    }
-    case 'animations': {
-      const data = await getAnimeMovies(page);
-      return { results: data.results, total_pages: data.total_pages };
-    }
-    // TV
-    case 'top-rated-series': {
-      const data = await getTopRatedTV(page);
-      return { results: data.results, total_pages: data.total_pages };
-    }
-    case 'anime-series': {
-      const data = await getAnimeTV(page);
-      return { results: data.results, total_pages: data.total_pages };
-    }
-    case 'sitcoms': {
-      const data = await getSitcoms(page);
-      return { results: data.results, total_pages: data.total_pages };
-    }
-    default:
-      throw new Error('Invalid category');
+  // Debug: log the slug so we can see what's being passed
+  console.log('🔍 getCategoryBySlug called with slug:', slug);
+
+  const fetchers: Record<string, (page: number) => Promise<TMDBResponse>> = {
+    'popular-movies': getPopularMovies,
+    'action-movies': getActionMovies,
+    'comedy-movies': getComedyMovies,
+    'animations': getAnimeMovies,
+    'top-rated-series': getTopRatedTV,
+    'anime-series': getAnimeTV,
+    'sitcoms': getSitcoms,
+  };
+
+  const fetcher = fetchers[slug];
+  if (!fetcher) {
+    console.warn(`❌ Unknown category slug: "${slug}" – returning empty results`);
+    return { results: [], total_pages: 0 };
+  }
+
+  try {
+    const data = await fetcher(page);
+    return { results: data.results, total_pages: data.total_pages };
+  } catch (error) {
+    console.error(`Error fetching category ${slug}:`, error);
+    return { results: [], total_pages: 0 };
   }
 }

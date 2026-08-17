@@ -1,42 +1,66 @@
-import { getServerSession } from 'next-auth';
+import { getServerSession, Session } from 'next-auth';
 import { notFound } from 'next/navigation';
 import { connectToDatabase } from '@/lib/mongodb';
 import { User } from '@/lib/models/User';
 import { Watchlist } from '@/lib/models/Watchlist';
+import { authOptions } from '@/lib/auth';
 import Image from 'next/image';
 import Link from 'next/link';
-import { authOptions } from '@/lib/auth';
-import StatusBadge from '@/components/ui/StatusBadge';
+import WatchlistItem from '@/components/WatchlistItem';
+import { getTVDetails } from '@/lib/tmdb';
 
 interface Props {
   params: Promise<{ userId: string }>;
+}
+
+function serializeDoc(doc: any) {
+  if (!doc) return null;
+  return JSON.parse(JSON.stringify(doc));
 }
 
 export default async function UserProfilePage({ params }: Props) {
   const { userId } = await params;
   await connectToDatabase();
 
-  // ✅ Cast user to any to access _id, name, image
+  // Fetch user and cast to any to avoid TypeScript issues with lean()
   const user = (await User.findById(userId).lean()) as any;
   if (!user) notFound();
 
-  // ✅ Cast entries to any[] to avoid property errors
-  const entries = (await Watchlist.find({ userId })
-    .sort({ addedAt: -1 })
-    .lean()) as any[];
+  // Fetch user's watchlist entries
+  const entries = await Watchlist.find({ userId }).sort({ addedAt: -1 }).lean();
 
-  // Stats
-  const totalMovies = entries.length;
-  const totalWatched = entries.filter((e: any) => e.status === 'watched').length;
-  const totalWant = entries.filter((e: any) => e.status === 'want').length;
-  const totalWatching = entries.filter((e: any) => e.status === 'watching').length;
-  const ratedEntries = entries.filter((e: any) => e.rating && e.rating > 0);
-  const avgRating = ratedEntries.length > 0
-    ? ratedEntries.reduce((acc: number, e: any) => acc + e.rating, 0) / ratedEntries.length
-    : 0;
+  // Process entries: determine mediaType if missing, separate movies & series
+  const movies = [];
+  const series = [];
 
-  // ✅ Cast session to any
-  const session = (await getServerSession(authOptions)) as any;
+  for (const entry of entries) {
+    let mediaType = entry.mediaType;
+
+    if (!mediaType || (mediaType !== 'movie' && mediaType !== 'tv')) {
+      try {
+        const tv = await getTVDetails(String(entry.movieId));
+        mediaType = tv ? 'tv' : 'movie';
+      } catch {
+        mediaType = 'movie';
+      }
+      await Watchlist.updateOne(
+        { _id: entry._id },
+        { $set: { mediaType } }
+      );
+    }
+
+    const entryWithType = { ...entry, mediaType };
+    if (mediaType === 'tv') {
+      series.push(entryWithType);
+    } else {
+      movies.push(entryWithType);
+    }
+  }
+
+  const serialize = (list: any[]) => list.map(serializeDoc);
+
+  // ✅ Properly type the session
+  const session = (await getServerSession(authOptions)) as Session | null;
   const isOwnProfile = session?.userId === userId;
 
   return (
@@ -66,65 +90,48 @@ export default async function UserProfilePage({ params }: Props) {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-        <StatCard label="Total Movies" value={totalMovies} color="text-white" />
-        <StatCard label="Watched" value={totalWatched} color="text-primary" />
-        <StatCard label="Want to Watch" value={totalWant} color="text-yellow-400" />
-        <StatCard label="Average Rating" value={avgRating.toFixed(1)} color="text-green-400" />
+        <StatCard label="Total Movies" value={movies.length} color="text-white" />
+        <StatCard label="Total Series" value={series.length} color="text-blue-400" />
+        <StatCard label="Watched" value={entries.filter((e: any) => e.status === 'watched').length} color="text-primary" />
+        <StatCard label="Avg Rating" value={entries.filter((e: any) => e.rating > 0).reduce((acc: number, e: any) => acc + e.rating, 0) / (entries.filter((e: any) => e.rating > 0).length || 1)} color="text-yellow-400" />
       </div>
 
-      {/* Watchlist grid */}
+      {/* Watchlist sections */}
       <h2 className="text-xl font-semibold mt-8 mb-4">Watchlist</h2>
-      {entries.length === 0 ? (
-        <div className="text-center py-12 bg-surface rounded-xl border border-border">
-          <p className="text-gray-400">This user hasn't added any movies yet.</p>
-        </div>
-      ) : (
-        <div className="movie-grid">
-          {entries.map((entry: any) => (
-            <div key={entry._id} className="card-hover rounded-xl overflow-hidden bg-surface border border-border group">
-              <Link href={`/movie/${entry.movieId}`}>
-                <div className="relative aspect-2/3 overflow-hidden bg-surface">
-                  {entry.posterPath ? (
-                    <Image
-                      src={`https://image.tmdb.org/t/p/w500${entry.posterPath}`}
-                      alt={entry.title}
-                      fill
-                      className="object-cover transition-transform duration-500 group-hover:scale-105"
-                      sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-border text-gray-500">No image</div>
-                  )}
-                  <div className="absolute top-2 right-2">
-                    <span className="px-2 py-1 text-xs font-bold bg-primary rounded-md text-white shadow-lg">
-                      {Math.round(entry.voteAverage * 10)}%
-                    </span>
-                  </div>
-                </div>
-              </Link>
-              <div className="p-3">
-                <Link href={`/movie/${entry.movieId}`}>
-                  <h3 className="font-semibold text-sm truncate text-white hover:text-primary transition">
-                    {entry.title}
-                  </h3>
-                </Link>
-                <div className="flex items-center justify-between mt-1 text-xs text-gray-400">
-                  <span>{entry.releaseDate?.split('-')[0] || 'N/A'}</span>
-                  <StatusBadge status={entry.status} />
-                </div>
-                {entry.rating > 0 && (
-                  <div className="text-xs text-yellow-400 mt-1">
-                    ⭐ {entry.rating.toFixed(1)}
-                  </div>
-                )}
-                {entry.review && (
-                  <p className="text-xs text-gray-400 mt-1 line-clamp-2">{entry.review}</p>
-                )}
-              </div>
+
+      <div className="space-y-8">
+        {/* Movies */}
+        <div>
+          <h3 className="text-lg font-medium text-white mb-3">🎬 Movies</h3>
+          {movies.length === 0 ? (
+            <div className="text-center py-8 bg-surface rounded-xl border border-border text-gray-400">
+              No movies in watchlist.
             </div>
-          ))}
+          ) : (
+            <div className="movie-grid">
+              {serialize(movies).map((entry) => (
+                <WatchlistItem key={entry._id} entry={entry} />
+              ))}
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Series */}
+        <div>
+          <h3 className="text-lg font-medium text-white mb-3">📺 TV Series</h3>
+          {series.length === 0 ? (
+            <div className="text-center py-8 bg-surface rounded-xl border border-border text-gray-400">
+              No series in watchlist.
+            </div>
+          ) : (
+            <div className="movie-grid">
+              {serialize(series).map((entry) => (
+                <WatchlistItem key={entry._id} entry={entry} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -132,7 +139,9 @@ export default async function UserProfilePage({ params }: Props) {
 function StatCard({ label, value, color }: { label: string; value: string | number; color: string }) {
   return (
     <div className="bg-surface rounded-xl border border-border p-4 text-center">
-      <div className={`text-2xl font-bold ${color}`}>{value}</div>
+      <div className={`text-2xl font-bold ${color}`}>
+        {typeof value === 'number' ? (Number.isInteger(value) ? value : value.toFixed(1)) : value}
+      </div>
       <div className="text-sm text-gray-400 mt-1">{label}</div>
     </div>
   );

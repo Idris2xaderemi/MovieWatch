@@ -6,6 +6,7 @@ import { getServerSession, Session } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/mongodb';
 import { Watchlist } from '@/lib/models/Watchlist';
+import Link from 'next/link'; 
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +26,7 @@ const tvSlugs = ['top-rated-series', 'anime-series', 'sitcoms'];
 function getMediaType(slug: string): 'movie' | 'tv' {
   if (movieSlugs.includes(slug)) return 'movie';
   if (tvSlugs.includes(slug)) return 'tv';
-  return 'movie'; 
+  return 'movie';
 }
 
 interface Props {
@@ -56,7 +57,6 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const session = (await getServerSession(authOptions)) as Session | null;
   let statusMap: { [id: number]: 'want' | 'watching' | 'watched' } = {};
 
-  // Only fetch watchlist statuses for movie categories
   const isMovieCategory = movieSlugs.includes(slug);
   if (session?.userId && movies.length > 0 && isMovieCategory) {
     await connectToDatabase();
@@ -80,6 +80,19 @@ export default async function CategoryPage({ params, searchParams }: Props) {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* ✅ Back to Home button */}
+      <div className="mb-4">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white transition"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Back to Home
+        </Link>
+      </div>
+
       <h1 className="text-3xl font-bold mb-6">{categoryTitles[slug]}</h1>
       <MovieGrid
         movies={moviesWithStatus}

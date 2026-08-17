@@ -5,7 +5,7 @@ import { Watchlist } from '@/lib/models/Watchlist';
 export async function GET() {
   await connectToDatabase();
 
-  // Aggregate: group by movieId, compute average rating and count
+
   const results = await Watchlist.aggregate([
     { $match: { rating: { $gt: 0 } } },
     {
@@ -17,6 +17,7 @@ export async function GET() {
         posterPath: { $first: '$posterPath' },
         releaseDate: { $first: '$releaseDate' },
         voteAverage: { $first: '$voteAverage' },
+        mediaType: { $first: '$mediaType' }, 
       },
     },
     { $sort: { avgRating: -1 } },

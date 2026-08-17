@@ -6,6 +6,7 @@ import { useSession, signIn } from 'next-auth/react';
 import StatusBadge from './StatusBadge';
 import RatingStars from './RatingStars';
 import ReviewForm from './ReviewForm';
+import ConfirmModal from './ConfirmModal';
 
 interface MovieData {
   title: string;
@@ -36,6 +37,7 @@ export default function StatusToggle({
   const [status, setStatus] = useState(initialStatus || null);
   const [loading, setLoading] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(false);
+  const [showRemoveModal, setShowRemoveModal] = useState(false);
 
   const statusOrder: ('want' | 'watching' | 'watched')[] = ['want', 'watching', 'watched'];
 
@@ -46,6 +48,7 @@ export default function StatusToggle({
     }
 
     if (!status) {
+      // Add to watchlist
       setLoading(true);
       try {
         const res = await fetch('/api/watchlist', {
@@ -77,10 +80,18 @@ export default function StatusToggle({
       return;
     }
 
+    // Cycle status
     const currentIndex = statusOrder.indexOf(status);
-    const nextIndex = (currentIndex + 1) % statusOrder.length;
-    const newStatus = statusOrder[nextIndex];
+    const nextIndex = currentIndex + 1;
 
+    // If we've reached the end (i.e., status is 'watched'), show modal instead of direct removal
+    if (nextIndex >= statusOrder.length) {
+      setShowRemoveModal(true);
+      return;
+    }
+
+    // Otherwise, update to next status
+    const newStatus = statusOrder[nextIndex];
     setLoading(true);
     try {
       const res = await fetch(`/api/watchlist/${movieId}`, {
@@ -94,6 +105,24 @@ export default function StatusToggle({
         router.refresh();
       } else {
         alert('Failed to update status');
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveConfirm = async () => {
+    setShowRemoveModal(false);
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/watchlist/${movieId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setStatus(null);
+        router.refresh();
+      } else {
+        alert('Failed to remove from watchlist');
       }
     } catch (error) {
       console.error(error);
@@ -145,15 +174,17 @@ export default function StatusToggle({
 
   return (
     <div className="space-y-3">
-      <button
-        onClick={cycleStatus}
-        disabled={loading}
-        className="flex items-center gap-2 text-sm bg-border hover:bg-border/80 px-4 py-2 rounded-full transition"
-      >
-        <span>Status:</span>
-        <StatusBadge status={status} />
-        <span className="text-gray-400 text-xs ml-1">(click to cycle)</span>
-      </button>
+      <div className="flex items-center gap-3">
+        <button
+          onClick={cycleStatus}
+          disabled={loading}
+          className="flex items-center gap-2 text-sm bg-border hover:bg-border/80 px-4 py-2 rounded-full transition"
+        >
+          <span>Status:</span>
+          <StatusBadge status={status} />
+          <span className="text-gray-400 text-xs ml-1">(click to cycle)</span>
+        </button>
+      </div>
 
       {status !== 'watched' && (
         <p className="text-sm text-gray-500 italic">
@@ -169,7 +200,7 @@ export default function StatusToggle({
               movieId={movieId}
               initialRating={initialRating}
               maxRating={7}
-              session={session} // ✅ pass session down
+              session={session}
               onRatingChange={handleRatingChange}
             />
           </div>
@@ -191,6 +222,16 @@ export default function StatusToggle({
           )}
         </>
       )}
+
+      {/* Remove confirmation modal */}
+      <ConfirmModal
+        isOpen={showRemoveModal}
+        onClose={() => setShowRemoveModal(false)}
+        onConfirm={handleRemoveConfirm}
+        title="Remove from watchlist?"
+        message="Are you sure you want to remove this from your watchlist?"
+        confirmText="Remove"
+      />
     </div>
   );
 }

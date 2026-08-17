@@ -1,64 +1,112 @@
-import { Metadata } from "next";
-import Image from "next/image";
-import Link from "next/link";
+import { Metadata } from 'next';
+import { getServerSession, Session } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { connectToDatabase } from '@/lib/mongodb';
+import { Watchlist } from '@/lib/models/Watchlist';
+import MovieGrid from '@/components/ui/MovieGrid';
 
 export const metadata: Metadata = {
-  title: "Top User Rated Movies – FilmHive",
-  description: "Movies rated highest by the FilmHive community",
+  title: 'Top User Rated – FilmHive',
+  description: 'Movies and series rated highest by the FilmHive community',
 };
 
 export default async function RatedMoviesPage() {
-  const res = await fetch(`${process.env.NEXTAUTH_URL}/api/movies/rated`, {
-    cache: "no-store",
-  });
-  const movies = await res.json();
+  const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+  const res = await fetch(`${baseUrl}/api/movies/rated`, { cache: 'no-store' });
+  const ratedItems = await res.json();
+
+  // Separate movies and series based on mediaType
+  const movies = ratedItems
+    .filter((item: any) => item.mediaType === 'movie' || !item.mediaType)
+    .map((m: any) => ({
+      id: m._id,
+      title: m.title,
+      poster_path: m.posterPath,
+      release_date: m.releaseDate,
+      vote_average: m.voteAverage,
+      popularity: 0,
+      genre_ids: [],
+      overview: '',
+      media_type: m.mediaType || 'movie',
+      avgRating: m.avgRating,
+      count: m.count,
+    }));
+
+  const series = ratedItems
+    .filter((item: any) => item.mediaType === 'tv')
+    .map((m: any) => ({
+      id: m._id,
+      title: m.title,
+      poster_path: m.posterPath,
+      release_date: m.releaseDate,
+      vote_average: m.voteAverage,
+      popularity: 0,
+      genre_ids: [],
+      overview: '',
+      media_type: 'tv',
+      avgRating: m.avgRating,
+      count: m.count,
+    }));
+
+  // ✅ Properly type the session
+  const session = (await getServerSession(authOptions)) as Session | null;
+  let statusMap: { [movieId: number]: 'want' | 'watching' | 'watched' } = {};
+
+  if (session?.userId) {
+    await connectToDatabase();
+    const allIds = [...movies, ...series].map((m: any) => m.id);
+    const entries = await Watchlist.find({
+      userId: session.userId,
+      movieId: { $in: allIds },
+    }).lean();
+    entries.forEach((entry: any) => {
+      statusMap[entry.movieId] = entry.status;
+    });
+  }
+
+  // Helper to attach watchlist status
+  const attachStatus = (list: any[]) =>
+    list.map((item) => ({
+      ...item,
+      watchlistStatus: statusMap[item.id] || null,
+    }));
+
+  const moviesWithStatus = attachStatus(movies);
+  const seriesWithStatus = attachStatus(series);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
       <div className="section-title mb-6">
-        <span className="accent"></span> 🏆 Top User Rated Movies
+        <span className="accent"></span> 🏆 Top User Rated
       </div>
 
-      {movies.length === 0 ? (
-        <div className="text-center py-16 bg-surface rounded-xl border border-border">
-          <p className="text-gray-400">No movies rated yet. Start rating!</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {movies.map((movie: any) => (
-            <Link href={`/movie/${movie._id}`} key={movie._id}>
-              <div className="card-hover rounded-xl overflow-hidden bg-surface border border-border group">
-                <div className="relative aspect-2/3 overflow-hidden bg-surface">
-                  <Image
-                    src={`https://image.tmdb.org/t/p/w500${movie.posterPath}`}
-                    alt={movie.title}
-                    fill
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                    sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
-                  />
-                  <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/80 to-transparent p-3">
-                    <div className="flex items-center gap-2 text-white">
-                      <span className="text-yellow-400">⭐</span>
-                      <span className="font-semibold">
-                        {movie.avgRating.toFixed(1)}
-                      </span>
-                      <span className="text-xs text-gray-300">
-                        ({movie.count} rating(s))
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="p-3">
-                  <h3 className="font-semibold text-sm truncate text-white group-hover:text-primary transition">
-                    {movie.title}
-                  </h3>
-                  <p className="text-xs text-gray-400">
-                    {movie.releaseDate?.split("-")[0] || "N/A"}
-                  </p>
-                </div>
-              </div>
-            </Link>
-          ))}
+      {/* Movies Section */}
+      <div className="mb-10">
+        <h2 className="text-xl font-bold text-white mb-3">🎬 Movies</h2>
+        {moviesWithStatus.length === 0 ? (
+          <div className="text-center py-8 bg-surface rounded-xl border border-border text-gray-400">
+            No rated movies yet.
+          </div>
+        ) : (
+          <MovieGrid movies={moviesWithStatus} showWatchlist={!!session} mediaType="movie" />
+        )}
+      </div>
+
+      {/* Series Section */}
+      <div>
+        <h2 className="text-xl font-bold text-white mb-3">📺 TV Series</h2>
+        {seriesWithStatus.length === 0 ? (
+          <div className="text-center py-8 bg-surface rounded-xl border border-border text-gray-400">
+            No rated series yet.
+          </div>
+        ) : (
+          <MovieGrid movies={seriesWithStatus} showWatchlist={!!session} mediaType="tv" />
+        )}
+      </div>
+
+      {moviesWithStatus.length === 0 && seriesWithStatus.length === 0 && (
+        <div className="text-center py-16 bg-surface rounded-xl border border-border mt-6">
+          <p className="text-gray-400">No items rated yet. Start rating!</p>
         </div>
       )}
     </div>
