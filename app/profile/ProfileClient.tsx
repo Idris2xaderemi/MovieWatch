@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { signOut } from 'next-auth/react';
+import { signOut, useSession } from 'next-auth/react';
 
 interface Props {
   userId: string;
@@ -20,6 +20,7 @@ interface Props {
 
 export default function ProfileClient({ userId, user, stats, recent, memberSince }: Props) {
   const router = useRouter();
+  const { data: session, update } = useSession(); // ✅ get update method
   const [mounted, setMounted] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(user?.name || '');
@@ -64,6 +65,8 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
       });
       if (res.ok) {
         setIsEditing(false);
+        // ✅ Update the session with the new name
+        await update({ name });
         router.refresh();
       } else {
         alert('Failed to update profile');
