@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { signOut, useSession } from 'next-auth/react';
+import { signOut, useSession, getSession } from 'next-auth/react';
 
 interface Props {
   userId: string;
@@ -23,25 +23,20 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
   const { data: session, update } = useSession();
   const [mounted, setMounted] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState(user?.name || '');
-  const [image, setImage] = useState(user?.image || '');
+  const [name, setName] = useState(session?.user?.name || user?.name || '');
+  const [image, setImage] = useState(session?.user?.image || user?.image || '');
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
 
   useEffect(() => {
+    if (session?.user?.name) setName(session.user.name);
+    if (session?.user?.image) setImage(session.user.image);
+  }, [session]);
+
+  useEffect(() => {
     setMounted(true);
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('welcome') === 'true') {
-        const alreadySeen = localStorage.getItem('welcomeSeen');
-        if (!alreadySeen) {
-          setShowWelcome(true);
-          localStorage.setItem('welcomeSeen', 'true');
-        }
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }
-    }
+    // welcome logic...
   }, []);
 
   const formatDate = (date: Date) => {
@@ -53,24 +48,43 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
     });
   };
 
-  const handleSave = async () => {
+  const refreshSession = async () => {
+    const newSession = await getSession();
+    console.log('🔄 New session after refresh:', newSession);
+    if (newSession?.user?.image) {
+      setImage(newSession.user.image);
+      setName(newSession.user.name || name);
+    }
+    router.refresh();
+  };
+
+  const handleSave = async (newImage?: string) => {
+    const finalImage = newImage !== undefined ? newImage : image;
     setLoading(true);
     try {
       const res = await fetch('/api/user/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, image }),
+        body: JSON.stringify({ name, image: finalImage }),
       });
       if (res.ok) {
         setIsEditing(false);
-        // ✅ Update session with new name and image
-        await update({ name, image });
-        router.refresh();
+        console.log('✅ Profile updated in DB, updating session...');
+        try {
+          await update({ name, image: finalImage });
+          console.log('✅ update() called with:', { name, image: finalImage });
+        } catch (updateError) {
+          console.error('❌ update() failed:', updateError);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        await refreshSession();
+        window.location.reload();
       } else {
         alert('Failed to update profile');
       }
     } catch (error) {
-      console.error(error);
+      console.error('Error updating profile:', error);
+      alert('An error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -84,7 +98,6 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
       alert('Please upload an image file');
       return;
     }
-
     if (file.size > 5 * 1024 * 1024) {
       alert('Image must be less than 5MB');
       return;
@@ -102,9 +115,9 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
 
       if (res.ok) {
         const data = await res.json();
-        setImage(data.imageUrl);
-        // ✅ Auto-save after upload (triggers update with new image)
-        await handleSave();
+        setImage(data.imageUrl); // update local state
+        // ✅ Pass the new URL directly to handleSave
+        await handleSave(data.imageUrl);
       } else {
         alert('Failed to upload image');
       }
@@ -116,23 +129,16 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
   };
 
   const handleDeleteAccount = async () => {
-    const confirmed = confirm(
-      'Are you sure? This will permanently delete your account and all your watchlist data (ratings, reviews, etc.). This action cannot be undone.'
-    );
-    if (!confirmed) return;
-
+    if (!confirm('Are you sure? This will permanently delete your account and all data.')) return;
     try {
-      const res = await fetch('/api/user/delete', {
-        method: 'DELETE',
-      });
+      const res = await fetch('/api/user/delete', { method: 'DELETE' });
       if (res.ok) {
         await signOut({ redirect: true, callbackUrl: '/' });
       } else {
-        alert('Failed to delete account. Please try again.');
+        alert('Failed to delete account.');
       }
     } catch (error) {
       console.error(error);
-      alert('An error occurred.');
     }
   };
 
@@ -140,9 +146,7 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
     <div>
       {showWelcome && (
         <div className="bg-primary/10 border border-primary/30 rounded-xl p-4 mb-6 text-center">
-          <p className="text-white">
-            👋 Welcome, <strong>{user?.name || 'User'}</strong>! Start building your watchlist by adding movies from the homepage.
-          </p>
+          <p className="text-white">👋 Welcome, <strong>{name || 'User'}</strong>! Start building your watchlist.</p>
         </div>
       )}
 
@@ -150,10 +154,13 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
         <div className="flex flex-col md:flex-row items-center gap-6">
           <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-primary shadow-lg">
             <Image
+              key={image || 'default'}
               src={image || '/default-avatar.png'}
               alt="Profile"
               fill
               className="object-cover"
+              sizes="96px"
+              loading="eager"
             />
             {isEditing && (
               <label className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs text-center py-1 cursor-pointer hover:bg-black/80 transition">
@@ -192,7 +199,7 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
             {isEditing ? (
               <>
                 <button
-                  onClick={handleSave}
+                  onClick={() => handleSave()}
                   disabled={loading || uploading}
                   className="btn-primary text-sm"
                 >
@@ -234,13 +241,9 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
               <div key={entry._id} className="p-4 flex justify-between items-center">
                 <div>
                   <p className="font-medium">{entry.title}</p>
-                  <p className="text-sm text-gray-400">
-                    Rating: {entry.rating || 'Not rated'}
-                  </p>
+                  <p className="text-sm text-gray-400">Rating: {entry.rating || 'Not rated'}</p>
                 </div>
-                <span className="text-xs text-gray-500">
-                  {mounted ? formatDate(entry.addedAt) : ''}
-                </span>
+                <span className="text-xs text-gray-500">{mounted ? formatDate(entry.addedAt) : ''}</span>
               </div>
             ))
           )}

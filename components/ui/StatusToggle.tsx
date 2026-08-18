@@ -122,10 +122,12 @@ export default function StatusToggle({
         setStatus(null);
         router.refresh();
       } else {
-        alert('Failed to remove from watchlist');
+        const data = await res.json();
+        alert(data.error || 'Failed to remove from watchlist');
       }
     } catch (error) {
       console.error(error);
+      alert('An error occurred while removing the item');
     } finally {
       setLoading(false);
     }

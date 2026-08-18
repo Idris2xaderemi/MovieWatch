@@ -10,50 +10,38 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      // ✅ Allows linking accounts with the same email (safe, prevents OAuthAccountNotLinked)
       allowDangerousEmailAccountLinking: true,
-    }) as any, // Type assertion needed because the type definition is outdated
+    }) as any,
   ],
-  session: {
-    strategy: 'jwt',
-  },
+  session: { strategy: 'jwt' },
   callbacks: {
-    /**
-     * JWT callback – handles token updates when the session is refreshed.
-     * This enables the navbar to show the updated name/image after profile changes.
-     * The `session` parameter is available when `trigger === 'update'`.
-     */
     async jwt({ token, trigger, session }: any) {
+      console.log('🔑 JWT callback triggered:', { trigger, session });
       if (trigger === 'update' && session) {
-        // Update token fields when the session is updated
-        if (session.name) token.name = session.name;
-        if (session.image) token.picture = session.image; // ✅ handle image updates
+        if (session.name) {
+          token.name = session.name;
+          console.log('✅ Updated token.name:', token.name);
+        }
+        if (session.image) {
+          token.picture = session.image;
+          console.log('✅ Updated token.picture:', token.picture);
+        }
       }
       return token;
     },
-
-    /**
-     * Session callback – adds user ID, name, and image to the session object.
-     * Uses `token.name` and `token.picture` if updated, otherwise falls back to session.user fields.
-     */
     async session({ session, token }: { session: Session; token: JWT }) {
+      console.log('🔄 Session callback:', { token });
       if (session.user) {
         session.user.id = token.sub!;
-        // Use token.name if available (from JWT update)
         session.user.name = token.name || session.user.name;
-        // Use token.picture if available (from JWT update)
         session.user.image = token.picture || session.user.image;
+        console.log('✅ Session user image:', session.user.image);
       }
-      // Top‑level userId for convenience
       session.userId = token.sub!;
       return session;
     },
   },
   events: {
-    /**
-     * signIn event – sends a welcome email to new users.
-     * Only triggers when `isNewUser` is true (database adapter required).
-     */
     async signIn({ user, isNewUser }: { user: any; isNewUser?: boolean }) {
       if (isNewUser && user.email) {
         try {
@@ -61,10 +49,7 @@ export const authOptions: NextAuthOptions = {
           await fetch(`${baseUrl}/api/send-welcome`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email: user.email,
-              name: user.name || 'User',
-            }),
+            body: JSON.stringify({ email: user.email, name: user.name || 'User' }),
           });
         } catch (error) {
           console.error('Failed to send welcome email:', error);
@@ -72,4 +57,4 @@ export const authOptions: NextAuthOptions = {
       }
     },
   },
-};
+};  

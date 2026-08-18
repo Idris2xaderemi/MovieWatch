@@ -1,16 +1,31 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import WatchlistItem from '@/components/WatchlistItem';
+
+interface WatchlistEntry {
+  _id: string;
+  movieId: number;
+  title: string;
+  posterPath: string;
+  backdropPath: string;
+  releaseDate: string;
+  voteAverage: number;
+  status: 'want' | 'watching' | 'watched';
+  rating: number;
+  review?: string;
+  mediaType?: 'movie' | 'tv';
+  addedAt: string;
+}
 
 const ITEMS_PER_PAGE = 15;
 
 export default function WatchlistPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [entries, setEntries] = useState<any[]>([]);
+  const [entries, setEntries] = useState<WatchlistEntry[]>([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -22,7 +37,7 @@ export default function WatchlistPage() {
     }
   }, [status, router]);
 
-  const fetchEntries = async (pageNum: number) => {
+  const fetchEntries = useCallback(async (pageNum: number) => {
     if (!session) return;
     setLoading(true);
     try {
@@ -45,14 +60,13 @@ export default function WatchlistPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [session]);
 
   useEffect(() => {
     if (session) {
       fetchEntries(1);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session]);
+  }, [session, fetchEntries]);
 
   const loadMore = () => {
     const nextPage = page + 1;
@@ -60,19 +74,15 @@ export default function WatchlistPage() {
     fetchEntries(nextPage);
   };
 
-  // Separate movies and series
-  const movies: any[] = [];
-  const series: any[] = [];
+  // ✅ Callback to refresh the list after removal
+  const handleItemRemoved = () => {
+    fetchEntries(1);
+    setPage(1);
+  };
 
-  for (const entry of entries) {
-    const mediaType = entry.mediaType || 'movie';
-    const entryWithType = { ...entry, mediaType };
-    if (mediaType === 'tv') {
-      series.push(entryWithType);
-    } else {
-      movies.push(entryWithType);
-    }
-  }
+  // Separate movies and series
+  const movies = entries.filter((entry) => entry.mediaType !== 'tv');
+  const series = entries.filter((entry) => entry.mediaType === 'tv');
 
   if (status === 'loading') {
     return (
@@ -98,7 +108,11 @@ export default function WatchlistPage() {
         ) : (
           <div className="movie-grid">
             {movies.map((entry) => (
-              <WatchlistItem key={entry._id} entry={entry} />
+              <WatchlistItem
+                key={entry._id}
+                entry={entry}
+                onRemove={handleItemRemoved}
+              />
             ))}
           </div>
         )}
@@ -114,7 +128,11 @@ export default function WatchlistPage() {
         ) : (
           <div className="movie-grid">
             {series.map((entry) => (
-              <WatchlistItem key={entry._id} entry={entry} />
+              <WatchlistItem
+                key={entry._id}
+                entry={entry}
+                onRemove={handleItemRemoved}
+              />
             ))}
           </div>
         )}

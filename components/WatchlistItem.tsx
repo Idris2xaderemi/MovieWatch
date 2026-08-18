@@ -26,9 +26,10 @@ interface WatchlistEntry {
 
 interface Props {
   entry: WatchlistEntry;
+  onRemove?: () => void; // ✅ callback when item is removed
 }
 
-export default function WatchlistItem({ entry }: Props) {
+export default function WatchlistItem({ entry, onRemove }: Props) {
   const router = useRouter();
   const { data: session } = useSession();
   const [status, setStatus] = useState(entry.status);
@@ -79,12 +80,16 @@ export default function WatchlistItem({ entry }: Props) {
     try {
       const res = await fetch(`/api/watchlist/${entry.movieId}`, { method: 'DELETE' });
       if (res.ok) {
+        // ✅ Call the parent callback to refresh the list
+        if (onRemove) onRemove();
         router.refresh();
       } else {
-        alert('Failed to remove from watchlist');
+        const data = await res.json();
+        alert(data.error || 'Failed to remove from watchlist');
       }
     } catch (error) {
       console.error(error);
+      alert('An error occurred while removing the item');
     } finally {
       setLoading(false);
     }
@@ -116,7 +121,7 @@ export default function WatchlistItem({ entry }: Props) {
   return (
     <div className="card-hover rounded-xl overflow-hidden bg-surface border border-border group">
       <Link href={detailLink}>
-        <div className="relative aspect-[2/3] overflow-hidden bg-surface">
+        <div className="relative aspect-2/3 overflow-hidden bg-surface">
           {entry.posterPath ? (
             <Image
               src={`https://image.tmdb.org/t/p/w500${entry.posterPath}`}
