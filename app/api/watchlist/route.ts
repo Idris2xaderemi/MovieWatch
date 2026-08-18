@@ -1,5 +1,5 @@
 import { getServerSession, Session } from 'next-auth';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/mongodb';
 import { Watchlist } from '@/lib/models/Watchlist';
@@ -10,6 +10,7 @@ function getUserId(session: Session | null): string | null {
   return session.userId || session.user?.id || null;
 }
 
+// ---------- POST (add to watchlist) ----------
 export async function POST(req: Request) {
   try {
     const session = (await getServerSession(authOptions)) as Session | null;
@@ -66,7 +67,8 @@ export async function POST(req: Request) {
   }
 }
 
-export async function GET(req: Request) {
+// ---------- GET (paginated watchlist) ----------
+export async function GET(req: NextRequest) {
   try {
     const session = (await getServerSession(authOptions)) as Session | null;
     if (!session) {
@@ -79,8 +81,18 @@ export async function GET(req: Request) {
     }
 
     await connectToDatabase();
-    const entries = await Watchlist.find({ userId }).sort({ addedAt: -1 }).lean();
-    return NextResponse.json(entries);
+
+    const url = new URL(req.url);
+    const page = parseInt(url.searchParams.get('page') || '1', 10);
+    const limit = parseInt(url.searchParams.get('limit') || '15', 10);
+    const skip = (page - 1) * limit;
+
+    const [entries, total] = await Promise.all([
+      Watchlist.find({ userId }).sort({ addedAt: -1 }).skip(skip).limit(limit).lean(),
+      Watchlist.countDocuments({ userId }),
+    ]);
+
+    return NextResponse.json({ entries, total, page, limit });
   } catch (error: any) {
     console.error('❌ Error in GET /api/watchlist:', error);
     return NextResponse.json(

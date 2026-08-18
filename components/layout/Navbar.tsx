@@ -20,7 +20,6 @@ export default function Navbar() {
   }, []);
 
   const handleSignOut = () => {
-    // ✅ Redirect to homepage after signing out
     signOut({ callbackUrl: '/' });
     setShowSignOutModal(false);
   };
@@ -59,7 +58,13 @@ export default function Navbar() {
               <div className="hidden md:flex items-center gap-2">
                 {session ? (
                   <>
-                    <span className="text-sm text-gray-400 hidden sm:inline">{session.user?.name}</span>
+                    {/* ✅ User name is now a link to profile */}
+                    <Link
+                      href="/profile"
+                      className="text-sm text-gray-400 hover:text-white transition hidden sm:inline-block"
+                    >
+                      {session.user?.name}
+                    </Link>
                     <button
                       onClick={() => setShowSignOutModal(true)}
                       className="auth-btn auth-btn-signout text-sm px-3 py-1.5"
@@ -123,7 +128,9 @@ export default function Navbar() {
                 <div className="pt-2 border-t border-border mt-1">
                   {session ? (
                     <div className="flex items-center justify-between px-3 py-2">
-                      <span className="text-sm text-gray-300">{session.user?.name}</span>
+                      <Link href="/profile" className="text-sm text-gray-300 hover:text-white transition">
+                        {session.user?.name}
+                      </Link>
                       <button
                         onClick={() => setShowSignOutModal(true)}
                         className="text-sm text-red-400 hover:text-red-300 transition"

@@ -1,78 +1,110 @@
-import { Metadata } from 'next';
-import { getServerSession, Session } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { connectToDatabase } from '@/lib/mongodb';
-import { Watchlist } from '@/lib/models/Watchlist';
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
 import MovieGrid from '@/components/ui/MovieGrid';
 
-export const metadata: Metadata = {
-  title: 'Top User Rated – FilmHive',
-  description: 'Movies and series rated highest by the FilmHive community',
-};
+interface RatedItem {
+  _id: number;
+  title: string;
+  posterPath: string;
+  backdropPath?: string;
+  releaseDate: string;
+  voteAverage: number;
+  mediaType?: 'movie' | 'tv';
+  avgRating: number;
+  count: number;
+}
 
-export default async function RatedMoviesPage() {
-  const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-  const res = await fetch(`${baseUrl}/api/movies/rated`, { cache: 'no-store' });
-  const ratedItems = await res.json();
+const ITEMS_PER_PAGE = 15;
 
-  // Separate movies and series based on mediaType
-  const movies = ratedItems
-    .filter((item: any) => item.mediaType === 'movie' || !item.mediaType)
-    .map((m: any) => ({
-      id: m._id,
-      title: m.title,
-      poster_path: m.posterPath,
-      release_date: m.releaseDate,
-      vote_average: m.voteAverage,
-      popularity: 0,
-      genre_ids: [],
-      overview: '',
-      media_type: m.mediaType || 'movie',
-      avgRating: m.avgRating,
-      count: m.count,
-    }));
+export default function RatedMoviesPage() {
+  const { data: session } = useSession();
+  const [items, setItems] = useState<RatedItem[]>([]);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [total, setTotal] = useState(0);
+  const [statusMap, setStatusMap] = useState<{ [id: number]: 'want' | 'watching' | 'watched' }>({});
 
-  const series = ratedItems
-    .filter((item: any) => item.mediaType === 'tv')
-    .map((m: any) => ({
-      id: m._id,
-      title: m.title,
-      poster_path: m.posterPath,
-      release_date: m.releaseDate,
-      vote_average: m.voteAverage,
-      popularity: 0,
-      genre_ids: [],
-      overview: '',
-      media_type: 'tv',
-      avgRating: m.avgRating,
-      count: m.count,
-    }));
+  // Fetch rated items
+  const fetchItems = async (pageNum: number) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/movies/rated?page=${pageNum}&limit=${ITEMS_PER_PAGE}`);
+      const data = await res.json();
+      if (res.ok) {
+        const newItems = data.items || [];
+        setTotal(data.total || 0);
+        if (pageNum === 1) {
+          setItems(newItems);
+        } else {
+          setItems((prev) => [...prev, ...newItems]);
+        }
+        setHasMore(data.page * data.limit < data.total);
+      } else {
+        console.error('Failed to fetch rated items');
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // ✅ Properly type the session
-  const session = (await getServerSession(authOptions)) as Session | null;
-  let statusMap: { [movieId: number]: 'want' | 'watching' | 'watched' } = {};
+  // Fetch watchlist statuses for the current items
+  const fetchStatuses = useCallback(async () => {
+    if (!session?.userId || items.length === 0) return;
+    const ids = items.map((m) => m._id).join(',');
+    try {
+      const res = await fetch(`/api/watchlist/statuses?ids=${ids}`);
+      if (res.ok) {
+        const data = await res.json();
+        setStatusMap(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch statuses', error);
+    }
+  }, [items, session]);
 
-  if (session?.userId) {
-    await connectToDatabase();
-    const allIds = [...movies, ...series].map((m: any) => m.id);
-    const entries = await Watchlist.find({
-      userId: session.userId,
-      movieId: { $in: allIds },
-    }).lean();
-    entries.forEach((entry: any) => {
-      statusMap[entry.movieId] = entry.status;
-    });
-  }
+  // Initial load
+  useEffect(() => {
+    fetchItems(1);
+  }, []);
 
-  // Helper to attach watchlist status
-  const attachStatus = (list: any[]) =>
-    list.map((item) => ({
-      ...item,
-      watchlistStatus: statusMap[item.id] || null,
-    }));
+  // Fetch statuses whenever items or session change
+  useEffect(() => {
+    fetchStatuses();
+  }, [fetchStatuses]);
 
-  const moviesWithStatus = attachStatus(movies);
-  const seriesWithStatus = attachStatus(series);
+  const loadMore = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchItems(nextPage);
+  };
+
+  // Map to Movie shape and attach status
+  const mapToMovie = (item: RatedItem, type: 'movie' | 'tv') => ({
+    id: item._id,
+    title: item.title,
+    poster_path: item.posterPath,
+    backdrop_path: item.backdropPath || '',
+    release_date: item.releaseDate,
+    vote_average: item.voteAverage,
+    popularity: 0,
+    genre_ids: [],
+    overview: '',
+    media_type: type,
+    watchlistStatus: statusMap[item._id] || null, // ✅ attach status
+  });
+
+  const movies = items
+    .filter((item) => item.mediaType !== 'tv')
+    .map((m) => mapToMovie(m, 'movie'));
+
+  const series = items
+    .filter((item) => item.mediaType === 'tv')
+    .map((m) => mapToMovie(m, 'tv'));
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
@@ -83,30 +115,42 @@ export default async function RatedMoviesPage() {
       {/* Movies Section */}
       <div className="mb-10">
         <h2 className="text-xl font-bold text-white mb-3">🎬 Movies</h2>
-        {moviesWithStatus.length === 0 ? (
+        {movies.length === 0 ? (
           <div className="text-center py-8 bg-surface rounded-xl border border-border text-gray-400">
             No rated movies yet.
           </div>
         ) : (
-          <MovieGrid movies={moviesWithStatus} showWatchlist={!!session} mediaType="movie" />
+          <MovieGrid movies={movies} showWatchlist={!!session} mediaType="movie" />
         )}
       </div>
 
       {/* Series Section */}
       <div>
         <h2 className="text-xl font-bold text-white mb-3">📺 TV Series</h2>
-        {seriesWithStatus.length === 0 ? (
+        {series.length === 0 ? (
           <div className="text-center py-8 bg-surface rounded-xl border border-border text-gray-400">
             No rated series yet.
           </div>
         ) : (
-          <MovieGrid movies={seriesWithStatus} showWatchlist={!!session} mediaType="tv" />
+          <MovieGrid movies={series} showWatchlist={!!session} mediaType="tv" />
         )}
       </div>
 
-      {moviesWithStatus.length === 0 && seriesWithStatus.length === 0 && (
+      {movies.length === 0 && series.length === 0 && (
         <div className="text-center py-16 bg-surface rounded-xl border border-border mt-6">
           <p className="text-gray-400">No items rated yet. Start rating!</p>
+        </div>
+      )}
+
+      {hasMore && (movies.length > 0 || series.length > 0) && (
+        <div className="mt-8 text-center">
+          <button
+            onClick={loadMore}
+            disabled={loading}
+            className="btn-outline px-6 py-2 text-sm"
+          >
+            {loading ? 'Loading...' : 'Load More'}
+          </button>
         </div>
       )}
     </div>

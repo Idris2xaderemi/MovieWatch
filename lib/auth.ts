@@ -20,25 +20,29 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     /**
      * JWT callback – handles token updates when the session is refreshed.
-     * This enables the navbar to show the updated name after profile changes.
+     * This enables the navbar to show the updated name/image after profile changes.
      * The `session` parameter is available when `trigger === 'update'`.
      */
     async jwt({ token, trigger, session }: any) {
-      if (trigger === 'update' && session?.name) {
-        token.name = session.name;
+      if (trigger === 'update' && session) {
+        // Update token fields when the session is updated
+        if (session.name) token.name = session.name;
+        if (session.image) token.picture = session.image; // ✅ handle image updates
       }
       return token;
     },
 
     /**
-     * Session callback – adds user ID and name to the session object.
-     * Uses `token.name` if updated, otherwise falls back to `session.user.name`.
+     * Session callback – adds user ID, name, and image to the session object.
+     * Uses `token.name` and `token.picture` if updated, otherwise falls back to session.user fields.
      */
     async session({ session, token }: { session: Session; token: JWT }) {
       if (session.user) {
         session.user.id = token.sub!;
         // Use token.name if available (from JWT update)
         session.user.name = token.name || session.user.name;
+        // Use token.picture if available (from JWT update)
+        session.user.image = token.picture || session.user.image;
       }
       // Top‑level userId for convenience
       session.userId = token.sub!;

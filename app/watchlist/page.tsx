@@ -1,55 +1,71 @@
-import { getServerSession, Session } from 'next-auth';
-import { redirect } from 'next/navigation';
-import { authOptions } from '@/lib/auth';
-import { connectToDatabase } from '@/lib/mongodb';
-import { Watchlist } from '@/lib/models/Watchlist';
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import WatchlistItem from '@/components/WatchlistItem';
-import { getTVDetails } from '@/lib/tmdb';
 
-function serializeDoc(doc: any) {
-  if (!doc) return null;
-  return JSON.parse(JSON.stringify(doc));
-}
+const ITEMS_PER_PAGE = 15;
 
-export default async function WatchlistPage() {
-  const session = (await getServerSession(authOptions)) as Session | null;
-  if (!session) {
-    redirect('/api/auth/signin');
-  }
+export default function WatchlistPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [entries, setEntries] = useState<any[]>([]);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [total, setTotal] = useState(0);
 
-  const userId = session.userId || session.user?.id;
-  if (!userId) {
-    redirect('/api/auth/signin');
-  }
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/api/auth/signin');
+    }
+  }, [status, router]);
 
-  await connectToDatabase();
+  const fetchEntries = async (pageNum: number) => {
+    if (!session) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/watchlist?page=${pageNum}&limit=${ITEMS_PER_PAGE}`);
+      const data = await res.json();
+      if (res.ok) {
+        const newEntries = data.entries || [];
+        setTotal(data.total || 0);
+        if (pageNum === 1) {
+          setEntries(newEntries);
+        } else {
+          setEntries((prev) => [...prev, ...newEntries]);
+        }
+        setHasMore(data.page * data.limit < data.total);
+      } else {
+        console.error('Failed to fetch watchlist');
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const entries = await Watchlist.find({ userId }).sort({ addedAt: -1 }).lean();
+  useEffect(() => {
+    if (session) {
+      fetchEntries(1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
 
-  // Separate movies and series, auto‑correct any 'movie' entry that is actually a TV show
-  const movies = [];
-  const series = [];
+  const loadMore = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchEntries(nextPage);
+  };
+
+  // Separate movies and series
+  const movies: any[] = [];
+  const series: any[] = [];
 
   for (const entry of entries) {
-    let mediaType = entry.mediaType;
-
-    // If it's marked as 'movie' but might be a TV show, check TMDB
-    if (mediaType === 'movie') {
-      try {
-        const tv = await getTVDetails(String(entry.movieId));
-        if (tv) {
-          // It's actually a TV show – correct the mediaType
-          mediaType = 'tv';
-          await Watchlist.updateOne(
-            { _id: entry._id },
-            { $set: { mediaType: 'tv' } }
-          );
-        }
-      } catch {
-        // Error or not a TV show – keep as movie
-      }
-    }
-
+    const mediaType = entry.mediaType || 'movie';
     const entryWithType = { ...entry, mediaType };
     if (mediaType === 'tv') {
       series.push(entryWithType);
@@ -58,7 +74,13 @@ export default async function WatchlistPage() {
     }
   }
 
-  const serialize = (list: any[]) => list.map(serializeDoc);
+  if (status === 'loading') {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+        <div className="text-gray-400">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
@@ -75,7 +97,7 @@ export default async function WatchlistPage() {
           </div>
         ) : (
           <div className="movie-grid">
-            {serialize(movies).map((entry) => (
+            {movies.map((entry) => (
               <WatchlistItem key={entry._id} entry={entry} />
             ))}
           </div>
@@ -91,7 +113,7 @@ export default async function WatchlistPage() {
           </div>
         ) : (
           <div className="movie-grid">
-            {serialize(series).map((entry) => (
+            {series.map((entry) => (
               <WatchlistItem key={entry._id} entry={entry} />
             ))}
           </div>
@@ -104,6 +126,18 @@ export default async function WatchlistPage() {
           <h3 className="text-xl font-semibold">Your watchlist is empty</h3>
           <p className="text-gray-400 mt-2">Start adding movies from the homepage.</p>
           <a href="/" className="btn-primary mt-5 inline-block">Browse Movies</a>
+        </div>
+      )}
+
+      {hasMore && (movies.length > 0 || series.length > 0) && (
+        <div className="mt-8 text-center">
+          <button
+            onClick={loadMore}
+            disabled={loading}
+            className="btn-outline px-6 py-2 text-sm"
+          >
+            {loading ? 'Loading...' : 'Load More'}
+          </button>
         </div>
       )}
     </div>

@@ -20,7 +20,7 @@ interface Props {
 
 export default function ProfileClient({ userId, user, stats, recent, memberSince }: Props) {
   const router = useRouter();
-  const { data: session, update } = useSession(); // ✅ get update method
+  const { data: session, update } = useSession();
   const [mounted, setMounted] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(user?.name || '');
@@ -29,7 +29,6 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
   const [uploading, setUploading] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
 
-  // Handle mount and welcome message
   useEffect(() => {
     setMounted(true);
     if (typeof window !== 'undefined') {
@@ -40,7 +39,6 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
           setShowWelcome(true);
           localStorage.setItem('welcomeSeen', 'true');
         }
-        // Remove the query param without page reload
         window.history.replaceState({}, document.title, window.location.pathname);
       }
     }
@@ -65,8 +63,8 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
       });
       if (res.ok) {
         setIsEditing(false);
-        // ✅ Update the session with the new name
-        await update({ name });
+        // ✅ Update session with new name and image
+        await update({ name, image });
         router.refresh();
       } else {
         alert('Failed to update profile');
@@ -105,7 +103,7 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
       if (res.ok) {
         const data = await res.json();
         setImage(data.imageUrl);
-        // Auto-save after upload
+        // ✅ Auto-save after upload (triggers update with new image)
         await handleSave();
       } else {
         alert('Failed to upload image');
@@ -140,7 +138,6 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
 
   return (
     <div>
-      {/* Welcome banner (only once) */}
       {showWelcome && (
         <div className="bg-primary/10 border border-primary/30 rounded-xl p-4 mb-6 text-center">
           <p className="text-white">
@@ -149,7 +146,6 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
         </div>
       )}
 
-      {/* Profile card */}
       <div className="bg-surface rounded-2xl border border-border p-6 md:p-8">
         <div className="flex flex-col md:flex-row items-center gap-6">
           <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-primary shadow-lg">
@@ -182,7 +178,6 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
                   className="w-full px-3 py-2 rounded-lg bg-background border border-border text-white"
                   placeholder="Your name"
                 />
-                {/* Image URL input removed – only upload via avatar */}
               </div>
             ) : (
               <>
@@ -222,7 +217,6 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
         </div>
       </div>
 
-      {/* Stats grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
         <StatCard label="Movies Watched" value={stats.totalWatched} color="text-primary" />
         <StatCard label="Want to Watch" value={stats.totalWant} color="text-yellow-400" />
@@ -230,7 +224,6 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
         <StatCard label="Average Rating" value={stats.avgRating} color="text-green-400" />
       </div>
 
-      {/* Recent activity */}
       <div className="mt-8">
         <h3 className="text-xl font-semibold mb-4">Recent Activity</h3>
         <div className="bg-surface rounded-xl border border-border divide-y divide-border">
@@ -254,7 +247,6 @@ export default function ProfileClient({ userId, user, stats, recent, memberSince
         </div>
       </div>
 
-      {/* Delete account */}
       <div className="mt-8 pt-4 border-t border-border">
         <button
           onClick={handleDeleteAccount}
